@@ -1,121 +1,91 @@
 
-# signer
+# signer <a href="https://monitoramento.sepe.pe.gov.br/signer"><img src="man/figures/logo.png" align="right" height="138" alt="signer website" /></a>
 
-**signer** is an R package that lets you digitally sign PDF documents and verify digital signatures in PDFs. It uses external tools like `BatchPDFSignPortable.jar` for signing and `pdfsig` (part of the Poppler library) for verifying signatures.
+**signer** is an R package to digitally **sign** PDF documents with a PKCS#12
+keystore and **verify** their signatures.
+
+As of v0.2.0 the package is powered by a bundled, **pure-Rust backend** (the
+[`pdf_signer`](https://github.com/StrategicProjects/pdf_signer) crate, wrapped
+with [extendr](https://extendr.github.io/)). It no longer shells out to Java
+(`BatchPDFSignPortable.jar`) or Poppler (`pdfsig`): **no Java runtime, OpenSSL,
+or external command-line tools are required** — only a Rust toolchain at install
+time.
 
 ## Installation
 
-You can install the package directly from GitHub:
+Requires a Rust toolchain (`cargo`, `rustc`) to compile the bundled backend.
+Install Rust from <https://rustup.rs>, then:
 
 ```r
-# Install the package directly from GitHub
-devtools::install_github("StrategicProjects/signer")
+# install.packages("remotes")
+remotes::install_github("StrategicProjects/signer")
 ```
 
-## Features
+## What it does
 
-This package provides two main functionalities:
+- **Detached `adbe.pkcs7.detached` CMS** signatures (RSA + SHA-256) over the
+  whole document.
+- **Incremental updates**: signing again appends only, so earlier signatures
+  stay valid — multi-signature is supported.
+- **Visible or invisible** signatures, with a custom text box + validation link.
+- **Cryptographic verification** of every signature (re-derives the signed byte
+  range, checks the message digest and the signer's RSA signature).
 
-### 1. `sign_pdf()`
+## Usage
 
-The `sign_pdf()` function allows you to digitally sign a PDF document using the `BatchPDFSignPortable.jar` file. The signature can include custom text, and you can control the positioning of the signature in the document.
-
-#### Usage Example:
+### `sign_pdf()`
 
 ```r
+library(signer)
+
 sign_pdf(
-  pdf_file = "input.pdf",
-  output_file = "signed_output.pdf",
-  keystore_path = "keystore.p12",
-  keystore_password = "password",
-  signtext = "Document digitally signed by CastLab",
-  validate_link = "http://castlab.org/validate",
-  translate = TRUE
+  pdf_file          = "input.pdf",
+  output_file       = "signed.pdf",
+  keystore_path     = "keystore.p12",      # or env var KEYSTORE_PATH
+  keystore_password = "password",          # or env var KEY_PASSWORD
+  signtext          = "Document digitally signed by CastLab",
+  validate_link     = "https://castlab.org/validate",
+  reason            = "Approval",
+  translate         = TRUE                  # Portuguese date label
 )
 ```
 
-#### Parameters:
+A *visible* signature box is drawn whenever `signtext` is non-empty; geometry is
+controlled by `page`, `x`, `y`, `width`, `height`, `font_size` and `border`.
+Omit `signtext` for an invisible signature.
 
-- **`pdf_file`**: Path to the input PDF file.
-- **`output_file`**: Path where the signed PDF will be saved.
-- **`fs`, `rh`, `rw`, `rx`, `ry`**: Font size, height, width, and signature coordinates.
-- **`page`**: Page number where the signature will be placed.
-- **`signtext`**: Custom text to include in the signature.
-- **`validate_link`**: Optional link for validating the signed document.
-- **`keystore_path`**: Path to the `.p12` file containing the key and certificate.
-- **`keystore_password`**: Password for the `.p12` file.
-- **`translate`**: If `TRUE`, the signature text will be in Portuguese; otherwise, it will be in English (default).
-
-### 2. `verify_pdf_signature()`
-
-The `verify_pdf_signature()` function checks the digital signatures in a PDF using the `pdfsig` command. You can also choose to translate the output to Portuguese.
-
-#### Usage Example:
+### `verify_pdf_signature()`
 
 ```r
-result <- verify_pdf_signature("signed_document.pdf", translate = TRUE)
-print(result)
+result <- verify_pdf_signature("signed.pdf")
+length(result)                              # number of signatures
+vapply(result, function(s) s$valid, logical(1))
+result[[1]]$signer                          # signer distinguished name
 ```
 
-#### Parameters:
+Each entry is a named list: `valid`, `signer`, `covers_whole_document`,
+`signed_len`, `byte_range`, `detail`.
 
-- **`pdf_file`**: Path to the PDF file to be verified.
-- **`translate`**: If `TRUE`, translates the output to Portuguese; otherwise, the result is in English.
-
-## Dependencies
-
-This package is supported only on Linux and macOS. It requires the following external tools:
-
-- **Java**: Required to run `BatchPDFSignPortable.jar` for signing PDFs.
-- **Poppler**: To verify signatures using `pdfsig`, Poppler must be installed on the system. `pdfsig` is part of the Poppler library (https://poppler.freedesktop.org/).
-
-### Installing `Poppler` on Linux:
+## Generating a test certificate
 
 ```bash
-sudo apt-get install poppler-utils
+openssl req -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem -days 365 -nodes
+openssl pkcs12 -export -inkey key.pem -in cert.pem -out keystore.p12
 ```
 
-### Installing `Poppler` on macOS (via Homebrew):
+## Architecture
 
-```bash
-brew install poppler
+```
+R: sign_pdf() / verify_pdf_signature()
+        │  (extendr)
+Rust wrapper  (src/rust)  ──▶  pdf_signer crate  (src/rust/pdf_signer)
+                                 lopdf + cms + rsa + p12-keystore (pure Rust)
 ```
 
-## Generating a Certificate using Command Line
-
-You can also generate a digital certificate from the command line using OpenSSL. Here are the steps:
-
-### Generate a private key:
-
-```bash
-openssl genrsa -aes128 -out private_key.key 2048
-```
-
-### Create a Certificate Signing Request (CSR):
-
-```bash
-openssl req -new -days 365 -key private_key.key -out request.csr
-```
-
-### Generate a self-signed certificate:
-
-```bash
-openssl x509 -in request.csr -out certificate.crt -req -signkey private_key.key -days 365
-```
-
-### Export the certificate to PKCS#12 format:
-
-```bash
-openssl pkcs12 -export -out certificate.pfx -inkey private_key.key -in certificate.crt
-```
-
-## Credits
-
-This package uses two external tools for signing and verifying PDF documents:
-
-1. **BatchPDFSignPortable.jar**: Developed by Josep Marxuach (https://github.com/jmarxuach/BatchPDFSign), `BatchPDFSign` is a Java utility for signing PDF documents.
-2. **pdfsig**: Part of the Poppler library, `pdfsig` is a command-line tool used to verify signatures in PDF documents. The Poppler project is maintained by the Poppler developer community (https://poppler.freedesktop.org/).
+The Rust crate dependencies are vendored under `src/rust/vendor.tar.xz` so the
+package builds offline (CRAN policy: `SystemRequirements: Cargo, rustc`).
 
 ## License
 
-This package is distributed under the GPL-3 license. See the `LICENSE` file for more information.
+GPL-3. The bundled `pdf_signer` crate and its vendored Rust dependencies retain
+their own licenses.

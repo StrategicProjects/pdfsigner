@@ -1,0 +1,29 @@
+# Vendored copy of the standalone `pdf_signer` crate
+# (github.com/StrategicProjects/pdf_signer), library target only.
+# Keep in sync with that repo until it is published to crates.io.
+[package]
+name = "pdf_signer"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.74"
+description = "Sign PDF documents with a PKCS#12 keystore and verify their signatures."
+license = "GPL-3.0-or-later"
+publish = false
+
+[lib]
+name = "pdf_signer"
+crate-type = ["lib"]
+
+[dependencies]
+lopdf = "0.36"
+thiserror = "2"
+cms = { version = "0.2", features = ["builder"] }
+x509-cert = { version = "0.2", features = ["builder"] }
+der = { version = "0.7", features = ["oid"] }
+spki = "0.7"
+const-oid = { version = "0.9", features = ["db"] }
+rsa = { version = "0.9", features = ["sha2"] }
+sha2 = "0.10"
+signature = "2"
+p12-keystore = "0.2"
+rand = "0.8"

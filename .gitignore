@@ -47,3 +47,9 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+docs
+src/rust/vendor
+src/Makevars
+src/Makevars.win
+
+.DS_Store

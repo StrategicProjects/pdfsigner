@@ -1,30 +1,33 @@
 Package: signer
-Title: PDF Signing and Signature Verification with BatchPDFSign and pdfsig
+Title: Digitally Sign and Verify PDF Documents
 Type: Package
-Version: 0.1.0
-Authors@R:
-    c(person(given = "Andre",
-             family = "Leite",
-             role = c("aut", "cre"),
-             email = "leite@castlab.org"),
-      person(given = "Hugo",
-             family = "Vasconcelos",
-             role = c("aut"),
-             email = "hugo.vasconcelos@ufpe.br"))
-Maintainer: Andre Leite <leite@castlab.org>
-Description: This package provides functions to digitally sign PDF documents and verify their signatures. It leverages external tools like `BatchPDFSignPortable.jar` (for signing) and `pdfsig` (for signature verification). The signing function allows adding custom text to the signature, and both signing and verification support localization for English and Portuguese. 
-Depends: R (>= 4.0)
+Version: 0.2.0
+Authors@R: c(
+              person("Andre", "Leite",
+                email = "leite@castlab.org",
+                role = c("aut", "cre")),
+              person("Hugo", "Vasconcelos",
+                email = "hugo.vasconcelos@ufpe.br",
+                role = "aut"),
+              person("Diogo", "Bezerra",
+                email = "diogo.bezerra@ufpe.br",
+                role = "aut")
+            )
+Description: Digitally sign PDF documents with a PKCS#12 keystore and verify
+    their signatures. Signing produces a detached PKCS#7 / CMS signature
+    ('adbe.pkcs7.detached') over the document and is applied as an incremental
+    update, so existing signatures remain valid. The cryptography and PDF
+    manipulation are performed by a bundled, pure-'Rust' backend (the
+    'pdf_signer' crate); no Java runtime, 'OpenSSL', or external command-line
+    tools are required. Visible signature appearances with custom text are
+    supported.
+Depends:
+    R (>= 4.2)
 License: GPL-3
 Encoding: UTF-8
-LazyData: true
-RoxygenNote: 7.3.2
-Imports: 
-    glue,
-    clock,
-    stringr
 URL: https://github.com/StrategicProjects/signer
 BugReports: https://github.com/StrategicProjects/signer/issues
-SystemRequirements: Linux, macOS, Java (for executing BatchPDFSignPortable.jar), pdfsig
-Note:
-    This package makes use of the BatchPDFSignPortable.jar, a Java-based tool for signing PDF documents. The BatchPDFSignPortable tool was created by Josep Marxuach (https://github.com/jmarxuach/BatchPDFSign). 
-    The package also uses the `pdfsig` command-line tool, part of the Poppler library, for verifying PDF signatures. The Poppler project is maintained by the Poppler developers (https://poppler.freedesktop.org/).
+SystemRequirements: Cargo (Rust's package manager), rustc
+Config/rextendr/version: 0.5.0
+Roxygen: list(markdown = TRUE)
+Config/roxygen2/version: 8.0.0
