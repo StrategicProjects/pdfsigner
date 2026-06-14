@@ -35,6 +35,9 @@
 #' @param border Draw a border around the visible box.
 #' @param translate If `TRUE`, the date label in the visible box is in
 #'   Portuguese; otherwise English.
+#' @param tsa_url Optional RFC 3161 Time-Stamping Authority `http://` URL. When
+#'   supplied, a signature timestamp is fetched and embedded, producing a
+#'   PAdES-B-T signature. Requires network access at signing time.
 #'
 #' @return Invisibly, the path to the signed PDF. Raises an error on failure.
 #' @examples
@@ -57,7 +60,7 @@ sign_pdf <- function(pdf_file, output_file,
                      reason = NULL, signer_name = NULL,
                      page = 1,
                      x = 36, y = 36, width = 320, height = 64, font_size = 8,
-                     border = TRUE, translate = FALSE) {
+                     border = TRUE, translate = FALSE, tsa_url = NULL) {
 
   if (!file.exists(pdf_file)) {
     stop("The specified PDF file does not exist: ", pdf_file)
@@ -104,7 +107,8 @@ sign_pdf <- function(pdf_file, output_file,
     width = as.numeric(width), height = as.numeric(height),
     font_size = as.numeric(font_size),
     appearance_text = appearance_text,
-    border = isTRUE(border)
+    border = isTRUE(border),
+    tsa_url = tsa_url %||% ""
   )
 
   message("PDF successfully signed: ", output_file)

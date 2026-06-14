@@ -20,7 +20,8 @@ sign_pdf(
   height = 64,
   font_size = 8,
   border = TRUE,
-  translate = FALSE
+  translate = FALSE,
+  tsa_url = NULL
 )
 }
 \arguments{
@@ -53,6 +54,10 @@ page's bottom-left).}
 
 \item{translate}{If \code{TRUE}, the date label in the visible box is in
 Portuguese; otherwise English.}
+
+\item{tsa_url}{Optional RFC 3161 Time-Stamping Authority \verb{http://} URL. When
+supplied, a signature timestamp is fetched and embedded, producing a
+PAdES-B-T signature. Requires network access at signing time.}
 }
 \value{
 Invisibly, the path to the signed PDF. Raises an error on failure.

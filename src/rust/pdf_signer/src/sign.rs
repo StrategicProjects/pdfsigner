@@ -69,18 +69,24 @@ pub struct SignOptions {
     /// Optional visible appearance. When `None`, the signature is invisible
     /// (zero-area widget).
     pub appearance: Option<Appearance>,
+    /// Optional RFC 3161 Time-Stamping Authority `http://` URL. When set, a
+    /// signature timestamp is fetched and embedded, producing PAdES-B-T.
+    pub tsa_url: Option<String>,
 }
 
 impl Default for SignOptions {
     fn default() -> Self {
         Self {
-            signature_capacity: 16384,
+            // Generous: must fit the CMS plus, optionally, an RFC 3161
+            // timestamp token (which carries the TSA certificate chain).
+            signature_capacity: 30000,
             reason: None,
             name: None,
             location: None,
             contact_info: None,
             signing_time: None,
             appearance: None,
+            tsa_url: None,
         }
     }
 }
@@ -128,7 +134,12 @@ pub fn sign_pdf_bytes(
     let mut signed_bytes = Vec::with_capacity(p + (total - q));
     signed_bytes.extend_from_slice(&buf[..p]);
     signed_bytes.extend_from_slice(&buf[q..]);
-    let der = cms_sign(keystore_p12, password, &signed_bytes)?;
+    let der = cms_sign(
+        keystore_p12,
+        password,
+        &signed_bytes,
+        opts.tsa_url.as_deref(),
+    )?;
 
     // 6. Write the signature hex into the placeholder.
     let hex = hex_encode(&der);
@@ -196,7 +207,7 @@ fn build_sig_dict(opts: &SignOptions) -> Object {
     let mut sig = Dictionary::new();
     sig.set("Type", Object::Name(b"Sig".to_vec()));
     sig.set("Filter", Object::Name(b"Adobe.PPKLite".to_vec()));
-    sig.set("SubFilter", Object::Name(b"adbe.pkcs7.detached".to_vec()));
+    sig.set("SubFilter", Object::Name(b"ETSI.CAdES.detached".to_vec()));
     // Ten-digit sentinels reserve enough width for any realistic file offset.
     sig.set(
         "ByteRange",

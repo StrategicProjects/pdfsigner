@@ -10,7 +10,7 @@ NULL
 #' When `visible` is TRUE, a bordered signature box with `appearance_text`
 #' is drawn on `page` at `[x, y, width, height]`. Errors become R errors.
 #' @export
-rust_sign_pdf <- function(pdf_file, output_file, keystore_path, keystore_password, reason, name, location, contact_info, signing_time, visible, page, x, y, width, height, font_size, appearance_text, border) .Call(wrap__rust_sign_pdf, pdf_file, output_file, keystore_path, keystore_password, reason, name, location, contact_info, signing_time, visible, page, x, y, width, height, font_size, appearance_text, border)
+rust_sign_pdf <- function(pdf_file, output_file, keystore_path, keystore_password, reason, name, location, contact_info, signing_time, visible, page, x, y, width, height, font_size, appearance_text, border, tsa_url) .Call(wrap__rust_sign_pdf, pdf_file, output_file, keystore_path, keystore_password, reason, name, location, contact_info, signing_time, visible, page, x, y, width, height, font_size, appearance_text, border, tsa_url)
 
 #' Verify all signatures in `pdf_file`. Returns a list with one named list per
 #' signature (`valid`, `signer`, `covers_whole_document`, `signed_len`,

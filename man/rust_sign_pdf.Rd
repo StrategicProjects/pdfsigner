@@ -22,7 +22,8 @@ rust_sign_pdf(
   height,
   font_size,
   appearance_text,
-  border
+  border,
+  tsa_url
 )
 }
 \description{

@@ -25,6 +25,7 @@ mod error;
 mod incremental;
 mod sign;
 pub mod testkit;
+mod tsa;
 mod util;
 mod verify;
 

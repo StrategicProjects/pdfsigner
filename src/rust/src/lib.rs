@@ -36,6 +36,7 @@ fn rust_sign_pdf(
     font_size: f64,
     appearance_text: &str,
     border: bool,
+    tsa_url: &str,
 ) -> std::result::Result<(), Error> {
     let appearance = visible.then(|| Appearance {
         page: page.max(1) as usize,
@@ -55,6 +56,7 @@ fn rust_sign_pdf(
         contact_info: opt(contact_info),
         signing_time: opt(signing_time),
         appearance,
+        tsa_url: opt(tsa_url),
         ..Default::default()
     };
 

@@ -8,17 +8,38 @@ use cms::builder::{SignedDataBuilder, SignerInfoBuilder};
 use cms::cert::CertificateChoices;
 use cms::cert::IssuerAndSerialNumber;
 use cms::content_info::ContentInfo;
-use cms::signed_data::{EncapsulatedContentInfo, SignedData, SignerIdentifier};
+use cms::signed_data::{EncapsulatedContentInfo, SignedData, SignerInfo, SignerInfos, SignerIdentifier};
 
-use const_oid::db::rfc5911::{ID_DATA, ID_MESSAGE_DIGEST, ID_SIGNING_TIME};
+use const_oid::db::rfc5911::{
+    ID_AA_SIGNING_CERTIFICATE_V_2, ID_DATA, ID_MESSAGE_DIGEST, ID_SIGNING_TIME,
+};
 use const_oid::db::rfc5912::ID_SHA_256;
+use const_oid::ObjectIdentifier;
 
 use der::asn1::{OctetString, SetOfVec, UtcTime};
-use der::{Any, DateTime, Decode, Encode};
+use der::{Any, DateTime, Decode, Encode, Sequence};
 
 use std::time::SystemTime;
 use x509_cert::attr::Attribute;
 use x509_cert::time::Time;
+
+/// id-aa-timeStampToken (RFC 3161), not present in the const-oid database.
+const ID_AA_TIME_STAMP_TOKEN: ObjectIdentifier =
+    ObjectIdentifier::new_unwrap("1.2.840.113549.1.9.16.2.14");
+
+/// `ESSCertIDv2` with the SHA-256 default hash algorithm and `issuerSerial`
+/// omitted (both optional), leaving just the certificate hash.
+#[derive(Sequence)]
+struct EssCertIdV2 {
+    cert_hash: OctetString,
+}
+
+/// `SigningCertificateV2` (RFC 5035) — binds the signer certificate to the
+/// signature, the key requirement that turns a basic CMS into CAdES/PAdES.
+#[derive(Sequence)]
+struct SigningCertificateV2 {
+    certs: Vec<EssCertIdV2>,
+}
 
 use p12_keystore::KeyStore;
 
@@ -69,8 +90,36 @@ fn signing_time_attribute() -> Result<Attribute> {
     })
 }
 
+/// Build the `signing-certificate-v2` (ESS) signed attribute over the DER of
+/// the signer certificate.
+fn signing_certificate_v2_attribute(cert_der: &[u8]) -> Result<Attribute> {
+    let hash = Sha256::digest(cert_der);
+    let scv2 = SigningCertificateV2 {
+        certs: vec![EssCertIdV2 {
+            cert_hash: OctetString::new(hash.to_vec()).map_err(crypto)?,
+        }],
+    };
+    let mut values = SetOfVec::new();
+    values
+        .insert(Any::encode_from(&scv2).map_err(crypto)?)
+        .map_err(crypto)?;
+    Ok(Attribute {
+        oid: ID_AA_SIGNING_CERTIFICATE_V_2,
+        values,
+    })
+}
+
 /// Produce a detached CMS signature over `data` using the PKCS#12 keystore.
-pub(crate) fn cms_sign(keystore_p12: &[u8], password: &str, data: &[u8]) -> Result<Vec<u8>> {
+///
+/// The signature is CAdES/PAdES-B-B (carries a `signing-certificate-v2`
+/// attribute). When `tsa_url` is `Some`, an RFC 3161 signature timestamp is
+/// fetched and embedded, yielding PAdES-B-T.
+pub(crate) fn cms_sign(
+    keystore_p12: &[u8],
+    password: &str,
+    data: &[u8],
+    tsa_url: Option<&str>,
+) -> Result<Vec<u8>> {
     // 1. Load key + certificate from the keystore.
     let ks = KeyStore::from_pkcs12(keystore_p12, password).map_err(crypto)?;
     let (_, chain) = ks
@@ -80,7 +129,8 @@ pub(crate) fn cms_sign(keystore_p12: &[u8], password: &str, data: &[u8]) -> Resu
         .chain()
         .first()
         .ok_or_else(|| Error::Crypto("keystore has no certificate".into()))?;
-    let cert = Certificate::from_der(leaf.as_der()).map_err(crypto)?;
+    let cert_der = leaf.as_der().to_vec();
+    let cert = Certificate::from_der(&cert_der).map_err(crypto)?;
     let priv_key = RsaPrivateKey::from_pkcs8_der(chain.key()).map_err(crypto)?;
     let signing_key = SigningKey::<Sha256>::new(priv_key);
 
@@ -107,6 +157,9 @@ pub(crate) fn cms_sign(keystore_p12: &[u8], password: &str, data: &[u8]) -> Resu
     signer_info
         .add_signed_attribute(signing_time_attribute()?)
         .map_err(crypto)?;
+    signer_info
+        .add_signed_attribute(signing_certificate_v2_attribute(&cert_der)?)
+        .map_err(crypto)?;
 
     // 3. Assemble the SignedData and DER-encode the ContentInfo wrapper.
     let content_info = SignedDataBuilder::new(&encap)
@@ -119,7 +172,44 @@ pub(crate) fn cms_sign(keystore_p12: &[u8], password: &str, data: &[u8]) -> Resu
         .build()
         .map_err(crypto)?;
 
-    content_info.to_der().map_err(crypto)
+    match tsa_url {
+        Some(url) => apply_timestamp(content_info, url),
+        None => content_info.to_der().map_err(crypto),
+    }
+}
+
+/// Fetch an RFC 3161 timestamp over the signature and embed it as the
+/// `id-aa-timeStampToken` unsigned attribute (PAdES-B-T).
+fn apply_timestamp(ci: ContentInfo, tsa_url: &str) -> Result<Vec<u8>> {
+    let mut sd = ci.content.decode_as::<SignedData>().map_err(crypto)?;
+
+    let mut signers: Vec<SignerInfo> = sd.signer_infos.0.iter().cloned().collect();
+    let si = signers
+        .get_mut(0)
+        .ok_or_else(|| Error::Crypto("no SignerInfo to timestamp".into()))?;
+
+    let token = crate::tsa::request_timestamp(tsa_url, si.signature.as_bytes())?;
+
+    let mut ts_values = SetOfVec::new();
+    ts_values
+        .insert(Any::encode_from(&token).map_err(crypto)?)
+        .map_err(crypto)?;
+    let ts_attr = Attribute {
+        oid: ID_AA_TIME_STAMP_TOKEN,
+        values: ts_values,
+    };
+
+    let mut unsigned = si.unsigned_attrs.clone().unwrap_or_default();
+    unsigned.insert(ts_attr).map_err(crypto)?;
+    si.unsigned_attrs = Some(unsigned);
+
+    sd.signer_infos = SignerInfos(SetOfVec::try_from(signers).map_err(crypto)?);
+
+    let new_ci = ContentInfo {
+        content_type: ci.content_type,
+        content: Any::encode_from(&sd).map_err(crypto)?,
+    };
+    new_ci.to_der().map_err(crypto)
 }
 
 /// Verify a detached CMS `der` (a ContentInfo) against `data`.

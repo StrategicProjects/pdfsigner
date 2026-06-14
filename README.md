@@ -23,8 +23,9 @@ remotes::install_github("StrategicProjects/signer")
 
 ## What it does
 
-- **Detached `adbe.pkcs7.detached` CMS** signatures (RSA + SHA-256) over the
-  whole document.
+- **PAdES** signatures: CAdES `ETSI.CAdES.detached` (RSA + SHA-256) with a
+  `signing-certificate-v2` attribute (**PAdES-B-B**), and an optional embedded
+  **RFC 3161 timestamp** via `tsa_url` (**PAdES-B-T**).
 - **Incremental updates**: signing again appends only, so earlier signatures
   stay valid — multi-signature is supported.
 - **Visible or invisible** signatures, with a custom text box + validation link.
@@ -46,7 +47,8 @@ sign_pdf(
   signtext          = "Document digitally signed by CastLab",
   validate_link     = "https://castlab.org/validate",
   reason            = "Approval",
-  translate         = TRUE                  # Portuguese date label
+  translate         = TRUE,                 # Portuguese date label
+  tsa_url           = "http://timestamp.digicert.com"  # optional: PAdES-B-T
 )
 ```
 
