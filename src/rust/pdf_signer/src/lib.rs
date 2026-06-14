@@ -26,13 +26,18 @@ mod error;
 mod incremental;
 mod sign;
 pub mod testkit;
+mod trust;
 mod tsa;
 mod util;
 mod verify;
 
 pub use error::Error;
 pub use sign::{sign_pdf_bytes, sign_pdf_file, Appearance, PadesLevel, SignOptions};
-pub use verify::{verify_pdf_bytes, verify_pdf_file, SignatureReport, VerifiedSignature};
+pub use trust::TrustStore;
+pub use verify::{
+    verify_pdf_bytes, verify_pdf_bytes_with_roots, verify_pdf_file, verify_pdf_file_with_roots,
+    SignatureReport, VerifiedSignature,
+};
 
 /// Convenience result type for the crate.
 pub type Result<T> = std::result::Result<T, Error>;

@@ -4,16 +4,21 @@
 \alias{verify_pdf_signature}
 \title{Verify the digital signatures of a PDF}
 \usage{
-verify_pdf_signature(pdf_file)
+verify_pdf_signature(pdf_file, roots = NULL)
 }
 \arguments{
 \item{pdf_file}{Path to the PDF to verify.}
+
+\item{roots}{Optional path to a PEM file of trusted root certificates (e.g.
+the ICP-Brasil AC Raiz set). When supplied, each signer certificate chain
+is validated against these roots and reported in \code{chain_trusted}.}
 }
 \value{
 A list with one entry per signature. Each entry is a named list with
-\code{valid} (logical), \code{signer} (subject DN), \code{covers_whole_document}
-(logical), \code{signed_len} (bytes), \code{byte_range} (numeric length-4) and
-\code{detail}. A length-zero list means no signatures were found.
+\code{valid} (logical), \code{signer} (subject DN), \code{chain_trusted} (logical or \code{NA}
+when no \code{roots} given), \code{covers_whole_document} (logical), \code{signed_len}
+(bytes), \code{byte_range} (numeric length-4) and \code{detail}. A length-zero list
+means no signatures were found.
 }
 \description{
 Cryptographically verifies every signature in \code{pdf_file} using the bundled
@@ -23,7 +28,7 @@ validating the signer's RSA signature over the signed attributes.
 }
 \examples{
 \dontrun{
-result <- verify_pdf_signature("signed.pdf")
+result <- verify_pdf_signature("signed.pdf", roots = "icp-brasil-roots.pem")
 vapply(result, function(s) s$valid, logical(1))
 }
 }

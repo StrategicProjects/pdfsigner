@@ -132,20 +132,27 @@ sign_pdf <- function(pdf_file, output_file,
 #' validating the signer's RSA signature over the signed attributes.
 #'
 #' @param pdf_file Path to the PDF to verify.
+#' @param roots Optional path to a PEM file of trusted root certificates (e.g.
+#'   the ICP-Brasil AC Raiz set). When supplied, each signer certificate chain
+#'   is validated against these roots and reported in `chain_trusted`.
 #'
 #' @return A list with one entry per signature. Each entry is a named list with
-#'   `valid` (logical), `signer` (subject DN), `covers_whole_document`
-#'   (logical), `signed_len` (bytes), `byte_range` (numeric length-4) and
-#'   `detail`. A length-zero list means no signatures were found.
+#'   `valid` (logical), `signer` (subject DN), `chain_trusted` (logical or `NA`
+#'   when no `roots` given), `covers_whole_document` (logical), `signed_len`
+#'   (bytes), `byte_range` (numeric length-4) and `detail`. A length-zero list
+#'   means no signatures were found.
 #' @examples
 #' \dontrun{
-#' result <- verify_pdf_signature("signed.pdf")
+#' result <- verify_pdf_signature("signed.pdf", roots = "icp-brasil-roots.pem")
 #' vapply(result, function(s) s$valid, logical(1))
 #' }
 #' @export
-verify_pdf_signature <- function(pdf_file) {
+verify_pdf_signature <- function(pdf_file, roots = NULL) {
   if (!file.exists(pdf_file)) {
     stop("The specified PDF file was not found: ", pdf_file)
   }
-  rust_verify_pdf(path.expand(pdf_file))
+  if (!is.null(roots) && !file.exists(roots)) {
+    stop("The roots PEM file was not found: ", roots)
+  }
+  rust_verify_pdf(path.expand(pdf_file), if (is.null(roots)) "" else path.expand(roots))
 }

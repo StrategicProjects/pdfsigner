@@ -27,3 +27,8 @@ sha2 = "0.10"
 signature = "2"
 p12-keystore = "0.2"
 rand = "0.8"
+ureq = { version = "3", optional = true }
+
+[features]
+default = []
+https = ["dep:ureq"]

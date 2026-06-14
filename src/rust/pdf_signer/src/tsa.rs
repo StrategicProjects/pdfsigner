@@ -8,8 +8,11 @@
 //! pure-Rust and dependency-free. Only `http://` endpoints are supported;
 //! `https://` would require a TLS stack (and a non-pure-Rust crypto provider).
 
+#[cfg(not(feature = "https"))]
 use std::io::{Read, Write};
+#[cfg(not(feature = "https"))]
 use std::net::TcpStream;
+#[cfg(not(feature = "https"))]
 use std::time::Duration;
 
 use cms::content_info::ContentInfo;
@@ -88,17 +91,49 @@ pub(crate) fn request_timestamp(tsa_url: &str, signature: &[u8]) -> Result<Conte
         .ok_or_else(|| Error::Crypto("TSA response carried no timestamp token".into()))
 }
 
-/// Minimal HTTP/1.1 POST over plain TCP. Returns the response body.
+/// POST `body` to `url`. Returns the response body.
 fn http_post(url: &str, content_type: &str, body: &[u8]) -> Result<Vec<u8>> {
-    http_request("POST", url, Some(content_type), body)
+    fetch("POST", url, Some(content_type), body)
 }
 
-/// Minimal HTTP/1.1 GET over plain TCP (used to fetch CRLs for the DSS).
+/// GET `url` (used to fetch CRLs for the DSS). Returns the response body.
 pub(crate) fn http_get(url: &str) -> Result<Vec<u8>> {
-    http_request("GET", url, None, &[])
+    fetch("GET", url, None, &[])
 }
 
-fn http_request(method: &str, url: &str, content_type: Option<&str>, body: &[u8]) -> Result<Vec<u8>> {
+/// Dispatch to the TLS-capable client when the `https` feature is on, otherwise
+/// the dependency-free plain-HTTP client.
+#[cfg(feature = "https")]
+fn fetch(method: &str, url: &str, content_type: Option<&str>, body: &[u8]) -> Result<Vec<u8>> {
+    let mut resp = if method == "POST" {
+        let mut req = ureq::post(url);
+        if let Some(ct) = content_type {
+            req = req.header("Content-Type", ct);
+        }
+        req.send(body).map_err(tsa)?
+    } else {
+        ureq::get(url).call().map_err(tsa)?
+    };
+    resp.body_mut()
+        .with_config()
+        .limit(20 * 1024 * 1024)
+        .read_to_vec()
+        .map_err(tsa)
+}
+
+#[cfg(not(feature = "https"))]
+fn fetch(method: &str, url: &str, content_type: Option<&str>, body: &[u8]) -> Result<Vec<u8>> {
+    http_request_plain(method, url, content_type, body)
+}
+
+/// Minimal HTTP/1.1 request over plain TCP (no TLS). Returns the response body.
+#[cfg(not(feature = "https"))]
+fn http_request_plain(
+    method: &str,
+    url: &str,
+    content_type: Option<&str>,
+    body: &[u8],
+) -> Result<Vec<u8>> {
     let rest = url
         .strip_prefix("http://")
         .ok_or_else(|| Error::Crypto("URL must start with http:// (https is not supported)".into()))?;
@@ -151,6 +186,7 @@ fn http_request(method: &str, url: &str, content_type: Option<&str>, body: &[u8]
 }
 
 /// Decode HTTP/1.1 chunked transfer-encoding.
+#[cfg(not(feature = "https"))]
 fn dechunk(data: &[u8]) -> Result<Vec<u8>> {
     let mut out = Vec::new();
     let mut i = 0;

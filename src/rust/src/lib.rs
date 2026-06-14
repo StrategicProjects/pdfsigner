@@ -1,5 +1,8 @@
 use extendr_api::prelude::*;
-use pdf_signer::{sign_pdf_file, verify_pdf_file, Appearance, PadesLevel, SignOptions};
+use pdf_signer::{
+    sign_pdf_file, verify_pdf_file, verify_pdf_file_with_roots, Appearance, PadesLevel,
+    SignOptions, TrustStore,
+};
 
 /// Empty string -> None, otherwise Some.
 fn opt(s: &str) -> Option<String> {
@@ -83,8 +86,17 @@ fn rust_sign_pdf(
 /// `byte_range`, `detail`). An empty list means no signatures were found.
 /// @export
 #[extendr]
-fn rust_verify_pdf(pdf_file: &str) -> std::result::Result<Robj, Error> {
-    let report = verify_pdf_file(pdf_file).map_err(|e| Error::Other(e.to_string()))?;
+fn rust_verify_pdf(
+    pdf_file: &str,
+    roots_pem_file: &str,
+) -> std::result::Result<Robj, Error> {
+    let report = if roots_pem_file.is_empty() {
+        verify_pdf_file(pdf_file).map_err(|e| Error::Other(e.to_string()))?
+    } else {
+        let pem = std::fs::read(roots_pem_file).map_err(|e| Error::Other(e.to_string()))?;
+        let store = TrustStore::from_pem(&pem).map_err(|e| Error::Other(e.to_string()))?;
+        verify_pdf_file_with_roots(pdf_file, &store).map_err(|e| Error::Other(e.to_string()))?
+    };
 
     let items: Vec<Robj> = report
         .signatures
@@ -94,6 +106,7 @@ fn rust_verify_pdf(pdf_file: &str) -> std::result::Result<Robj, Error> {
             list!(
                 valid = s.valid,
                 signer = s.signer.clone().unwrap_or_default(),
+                chain_trusted = s.chain_trusted,
                 covers_whole_document = s.covers_whole_document,
                 signed_len = s.signed_len as f64,
                 byte_range = byte_range,

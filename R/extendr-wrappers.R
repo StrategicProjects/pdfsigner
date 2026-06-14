@@ -16,6 +16,6 @@ rust_sign_pdf <- function(pdf_file, output_file, keystore_path, keystore_passwor
 #' signature (`valid`, `signer`, `covers_whole_document`, `signed_len`,
 #' `byte_range`, `detail`). An empty list means no signatures were found.
 #' @export
-rust_verify_pdf <- function(pdf_file) .Call(wrap__rust_verify_pdf, pdf_file)
+rust_verify_pdf <- function(pdf_file, roots_pem_file) .Call(wrap__rust_verify_pdf, pdf_file, roots_pem_file)
 
 # nolint end

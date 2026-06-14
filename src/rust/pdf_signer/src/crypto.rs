@@ -212,6 +212,32 @@ fn apply_timestamp(ci: ContentInfo, tsa_url: &str) -> Result<Vec<u8>> {
     new_ci.to_der().map_err(crypto)
 }
 
+/// Extract the signer certificate (matched by SignerIdentifier) and the full
+/// pool of certificates embedded in a signature CMS, for chain validation.
+pub(crate) fn signer_certificate_and_pool(
+    cms_der: &[u8],
+) -> Result<(Certificate, Vec<Certificate>)> {
+    let ci = ContentInfo::from_der(cms_der).map_err(crypto)?;
+    let sd = ci.content.decode_as::<SignedData>().map_err(crypto)?;
+    let si = sd
+        .signer_infos
+        .0
+        .iter()
+        .next()
+        .ok_or_else(|| Error::Verification("no SignerInfo present".into()))?;
+    let signer = find_signer_cert(&sd, si)?.clone();
+
+    let mut pool = Vec::new();
+    if let Some(set) = &sd.certificates {
+        for choice in set.0.iter() {
+            if let CertificateChoices::Certificate(c) = choice {
+                pool.push(c.clone());
+            }
+        }
+    }
+    Ok((signer, pool))
+}
+
 /// Lightweight check that a `/DocTimeStamp` `/Contents` is a well-formed RFC
 /// 3161 token whose message imprint is bound to `data` (the document byte
 /// range). Full TSA-signature/chain validation is left for a future B-LT

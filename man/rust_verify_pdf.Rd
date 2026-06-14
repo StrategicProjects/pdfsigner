@@ -6,7 +6,7 @@
 signature (\code{valid}, \code{signer}, \code{covers_whole_document}, \code{signed_len},
 \code{byte_range}, \code{detail}). An empty list means no signatures were found.}
 \usage{
-rust_verify_pdf(pdf_file)
+rust_verify_pdf(pdf_file, roots_pem_file)
 }
 \description{
 Verify all signatures in \code{pdf_file}. Returns a list with one named list per

@@ -2,8 +2,11 @@
 
 use std::path::Path;
 
-use crate::crypto::{cms_verify, verify_doc_timestamp};
+use std::time::SystemTime;
+
+use crate::crypto::{cms_verify, signer_certificate_and_pool, verify_doc_timestamp};
 use crate::error::Error;
+use crate::trust::{verify_chain, TrustStore};
 use crate::util::{der_total_len, find_sub, hex_decode};
 use crate::Result;
 
@@ -20,6 +23,9 @@ pub struct VerifiedSignature {
     pub covers_whole_document: bool,
     /// Signer certificate subject DN, when the signature could be parsed.
     pub signer: Option<String>,
+    /// Whether the signer certificate chains to a trusted root. `None` when no
+    /// trust store was supplied or the entry is a document timestamp.
+    pub chain_trusted: Option<bool>,
     /// Human-readable detail (error message when invalid).
     pub detail: String,
 }
@@ -45,18 +51,33 @@ pub fn verify_pdf_file(path: impl AsRef<Path>) -> Result<SignatureReport> {
 
 /// Verify all signatures of an in-memory PDF (one per `/ByteRange`).
 pub fn verify_pdf_bytes(pdf: &[u8]) -> Result<SignatureReport> {
+    verify_pdf_bytes_with_roots(pdf, &TrustStore::new())
+}
+
+/// Verify a PDF file, additionally validating each signer certificate chain
+/// against `roots` (e.g. the ICP-Brasil roots).
+pub fn verify_pdf_file_with_roots(
+    path: impl AsRef<Path>,
+    roots: &TrustStore,
+) -> Result<SignatureReport> {
+    let pdf = std::fs::read(path)?;
+    verify_pdf_bytes_with_roots(&pdf, roots)
+}
+
+/// Verify an in-memory PDF, validating signer chains against `roots`.
+pub fn verify_pdf_bytes_with_roots(pdf: &[u8], roots: &TrustStore) -> Result<SignatureReport> {
     let mut signatures = Vec::new();
     let mut from = 0;
     while let Some(rel) = find_sub(&pdf[from..], b"/ByteRange") {
         let br = from + rel;
         from = br + b"/ByteRange".len();
-        signatures.push(verify_one(pdf, br)?);
+        signatures.push(verify_one(pdf, br, roots)?);
     }
     Ok(SignatureReport { signatures })
 }
 
 /// Verify the single signature whose `/ByteRange` begins at `br`.
-fn verify_one(pdf: &[u8], br: usize) -> Result<VerifiedSignature> {
+fn verify_one(pdf: &[u8], br: usize, roots: &TrustStore) -> Result<VerifiedSignature> {
     let byte_range = parse_byte_range(&pdf[br..])?;
     let der = extract_cms(pdf, br)?;
 
@@ -75,7 +96,8 @@ fn verify_one(pdf: &[u8], br: usize) -> Result<VerifiedSignature> {
     // not a detached document signature — verify it differently.
     let is_timestamp = subfilter_before(pdf, br).as_deref() == Some(b"ETSI.RFC3161");
 
-    let (valid, signer, detail) = if is_timestamp {
+    let mut chain_trusted = None;
+    let (valid, signer, mut detail) = if is_timestamp {
         match verify_doc_timestamp(&der, &signed) {
             Ok(()) => (
                 true,
@@ -95,12 +117,24 @@ fn verify_one(pdf: &[u8], br: usize) -> Result<VerifiedSignature> {
         }
     };
 
+    // Chain validation against the trust store (regular signatures only).
+    if !is_timestamp && !roots.is_empty() {
+        if let Ok((leaf, pool)) = signer_certificate_and_pool(&der) {
+            let result = verify_chain(&leaf, &pool, roots, SystemTime::now());
+            chain_trusted = Some(result.trusted);
+            detail = format!("{detail}; chain: {}", result.detail);
+        } else {
+            chain_trusted = Some(false);
+        }
+    }
+
     Ok(VerifiedSignature {
         valid,
         byte_range,
         signed_len: l1 + l2,
         covers_whole_document,
         signer,
+        chain_trusted,
         detail,
     })
 }

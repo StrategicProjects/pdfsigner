@@ -15,7 +15,7 @@ path = 'document.rs'
 
 [dependencies]
 extendr-api = '0.9'
-pdf_signer = { path = 'pdf_signer' }
+pdf_signer = { path = 'pdf_signer', features = ['https'] }
 
 [profile.release]
 lto = true

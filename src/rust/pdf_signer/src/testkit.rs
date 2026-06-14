@@ -113,3 +113,64 @@ pub fn self_signed_p12(password: &str) -> Vec<u8> {
     ks.add_entry("poc", KeyStoreEntry::PrivateKeyChain(chain));
     ks.writer(password).write().expect("write p12")
 }
+
+/// Build a tiny PKI — a self-signed root CA and a leaf signed by it — and
+/// return `(p12, root_cert_der)`. The p12 holds the leaf key + `[leaf, root]`
+/// chain; `root_cert_der` is the trust anchor for chain-validation tests.
+pub fn ca_signed_p12(password: &str) -> (Vec<u8>, Vec<u8>) {
+    let mut rng = rand::thread_rng();
+    let validity = Validity::from_now(Duration::from_secs(365 * 24 * 3600)).expect("validity");
+
+    // Root CA (self-signed).
+    let root_key = RsaPrivateKey::new(&mut rng, 2048).expect("root keygen");
+    let root_signing = SigningKey::<Sha256>::new(root_key);
+    let root_name = Name::from_str("CN=PoC Test Root CA,O=StrategicProjects,C=BR").unwrap();
+    let root_spki = SubjectPublicKeyInfoOwned::from_key(root_signing.verifying_key()).unwrap();
+    let root_cert = CertificateBuilder::new(
+        Profile::Root,
+        SerialNumber::from(1u32),
+        validity,
+        root_name.clone(),
+        root_spki,
+        &root_signing,
+    )
+    .expect("root builder")
+    .build::<Signature>()
+    .expect("build root");
+    let root_der = root_cert.to_der().expect("root der");
+
+    // Leaf, signed by the root key.
+    let leaf_key = RsaPrivateKey::new(&mut rng, 2048).expect("leaf keygen");
+    let leaf_signing = SigningKey::<Sha256>::new(leaf_key.clone());
+    let leaf_name = Name::from_str("CN=PoC Signer,O=StrategicProjects,C=BR").unwrap();
+    let leaf_spki = SubjectPublicKeyInfoOwned::from_key(leaf_signing.verifying_key()).unwrap();
+    let leaf_cert = CertificateBuilder::new(
+        Profile::Leaf {
+            issuer: root_name,
+            enable_key_agreement: false,
+            enable_key_encipherment: true,
+        },
+        SerialNumber::from(2u32),
+        validity,
+        leaf_name,
+        leaf_spki,
+        &root_signing, // signed by the ROOT key
+    )
+    .expect("leaf builder")
+    .build::<Signature>()
+    .expect("build leaf");
+    let leaf_der = leaf_cert.to_der().expect("leaf der");
+
+    let key_der = leaf_key.to_pkcs8_der().expect("pkcs8").as_bytes().to_vec();
+    let chain = PrivateKeyChain::new(
+        &key_der,
+        b"poc",
+        vec![
+            P12Certificate::from_der(&leaf_der).expect("p12 leaf"),
+            P12Certificate::from_der(&root_der).expect("p12 root"),
+        ],
+    );
+    let mut ks = KeyStore::new();
+    ks.add_entry("poc", KeyStoreEntry::PrivateKeyChain(chain));
+    (ks.writer(password).write().expect("write p12"), root_der)
+}

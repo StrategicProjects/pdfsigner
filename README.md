@@ -67,8 +67,19 @@ vapply(result, function(s) s$valid, logical(1))
 result[[1]]$signer                          # signer distinguished name
 ```
 
-Each entry is a named list: `valid`, `signer`, `covers_whole_document`,
-`signed_len`, `byte_range`, `detail`.
+Each entry is a named list: `valid`, `signer`, `chain_trusted`,
+`covers_whole_document`, `signed_len`, `byte_range`, `detail`.
+
+Pass `roots` (a PEM file of trusted roots, e.g. the ICP-Brasil AC Raiz set) to
+validate each signer certificate chain; `chain_trusted` is then `TRUE`/`FALSE`
+(and `NA` when no roots are given):
+
+```r
+verify_pdf_signature("signed.pdf", roots = "icp-brasil-roots.pem")
+```
+
+TSA / CRL endpoints over **HTTPS** are supported (the bundled Rust backend is
+built with its `https` feature, using rustls).
 
 ## Generating a test certificate
 
