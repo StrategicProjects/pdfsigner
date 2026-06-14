@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use crate::crypto::cms_verify;
+use crate::crypto::{cms_verify, verify_doc_timestamp};
 use crate::error::Error;
 use crate::util::{der_total_len, find_sub, hex_decode};
 use crate::Result;
@@ -71,13 +71,28 @@ fn verify_one(pdf: &[u8], br: usize) -> Result<VerifiedSignature> {
 
     let covers_whole_document = s1 == 0 && (s2 + l2) == pdf.len();
 
-    let (valid, signer, detail) = match cms_verify(&der, &signed) {
-        Ok(v) => (
-            true,
-            Some(v.signer_subject.clone()),
-            format!("valid CMS signature; signer: {}", v.signer_subject),
-        ),
-        Err(e) => (false, None, format!("{e}")),
+    // A `/DocTimeStamp` (SubFilter ETSI.RFC3161) holds a bare RFC 3161 token,
+    // not a detached document signature — verify it differently.
+    let is_timestamp = subfilter_before(pdf, br).as_deref() == Some(b"ETSI.RFC3161");
+
+    let (valid, signer, detail) = if is_timestamp {
+        match verify_doc_timestamp(&der, &signed) {
+            Ok(()) => (
+                true,
+                None,
+                "valid document timestamp (RFC 3161)".to_string(),
+            ),
+            Err(e) => (false, None, format!("{e}")),
+        }
+    } else {
+        match cms_verify(&der, &signed) {
+            Ok(v) => (
+                true,
+                Some(v.signer_subject.clone()),
+                format!("valid CMS signature; signer: {}", v.signer_subject),
+            ),
+            Err(e) => (false, None, format!("{e}")),
+        }
     };
 
     Ok(VerifiedSignature {
@@ -88,6 +103,32 @@ fn verify_one(pdf: &[u8], br: usize) -> Result<VerifiedSignature> {
         signer,
         detail,
     })
+}
+
+/// Read the `/SubFilter` name that precedes the `/ByteRange` at `br` (each
+/// signature dictionary writes SubFilter before ByteRange).
+fn subfilter_before(pdf: &[u8], br: usize) -> Option<Vec<u8>> {
+    let hay = &pdf[..br];
+    let key = b"/SubFilter";
+    let pos = (0..=hay.len().saturating_sub(key.len()))
+        .rev()
+        .find(|&i| &hay[i..i + key.len()] == key)?;
+    let mut j = pos + key.len();
+    while matches!(pdf.get(j), Some(b' ' | b'\r' | b'\n' | b'\t')) {
+        j += 1;
+    }
+    if pdf.get(j) != Some(&b'/') {
+        return None;
+    }
+    j += 1;
+    let start = j;
+    while !matches!(
+        pdf.get(j),
+        None | Some(b' ' | b'\r' | b'\n' | b'\t' | b'/' | b'>' | b'[' | b'(')
+    ) {
+        j += 1;
+    }
+    Some(pdf[start..j].to_vec())
 }
 
 /// Parse `[a b c d]` starting at a slice beginning with `/ByteRange`.

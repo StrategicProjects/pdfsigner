@@ -21,7 +21,8 @@ sign_pdf(
   font_size = 8,
   border = TRUE,
   translate = FALSE,
-  tsa_url = NULL
+  tsa_url = NULL,
+  pades_level = c("bb", "bt", "blt", "blta")
 )
 }
 \arguments{
@@ -55,9 +56,13 @@ page's bottom-left).}
 \item{translate}{If \code{TRUE}, the date label in the visible box is in
 Portuguese; otherwise English.}
 
-\item{tsa_url}{Optional RFC 3161 Time-Stamping Authority \verb{http://} URL. When
-supplied, a signature timestamp is fetched and embedded, producing a
-PAdES-B-T signature. Requires network access at signing time.}
+\item{tsa_url}{Optional RFC 3161 Time-Stamping Authority \verb{http://} URL.
+Required for \code{pades_level} \code{"bt"} and above. Requires network access.}
+
+\item{pades_level}{PAdES conformance level: \code{"bb"} (baseline, default),
+\code{"bt"} (+ signature timestamp), \code{"blt"} (+ DSS with certificates and CRLs),
+or \code{"blta"} (+ a document timestamp over the whole file). Levels \code{"bt"} and
+above need \code{tsa_url}.}
 }
 \value{
 Invisibly, the path to the signed PDF. Raises an error on failure.

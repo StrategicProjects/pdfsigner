@@ -21,6 +21,7 @@
 //!   RustCrypto backend is the path for a CRAN-friendly, vendored build.
 
 mod crypto;
+mod dss;
 mod error;
 mod incremental;
 mod sign;
@@ -30,7 +31,7 @@ mod util;
 mod verify;
 
 pub use error::Error;
-pub use sign::{sign_pdf_bytes, sign_pdf_file, Appearance, SignOptions};
+pub use sign::{sign_pdf_bytes, sign_pdf_file, Appearance, PadesLevel, SignOptions};
 pub use verify::{verify_pdf_bytes, verify_pdf_file, SignatureReport, VerifiedSignature};
 
 /// Convenience result type for the crate.

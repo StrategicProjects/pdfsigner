@@ -23,9 +23,10 @@ remotes::install_github("StrategicProjects/signer")
 
 ## What it does
 
-- **PAdES** signatures: CAdES `ETSI.CAdES.detached` (RSA + SHA-256) with a
-  `signing-certificate-v2` attribute (**PAdES-B-B**), and an optional embedded
-  **RFC 3161 timestamp** via `tsa_url` (**PAdES-B-T**).
+- **PAdES** signatures up to **B-LTA** via `pades_level`: `"bb"` (CAdES
+  `signing-certificate-v2`), `"bt"` (+ RFC 3161 signature timestamp), `"blt"`
+  (+ a `/DSS` with the certificate chain and CRLs), `"blta"` (+ a document
+  timestamp over the whole file). Levels `"bt"`+ need a `tsa_url`.
 - **Incremental updates**: signing again appends only, so earlier signatures
   stay valid — multi-signature is supported.
 - **Visible or invisible** signatures, with a custom text box + validation link.
@@ -48,7 +49,8 @@ sign_pdf(
   validate_link     = "https://castlab.org/validate",
   reason            = "Approval",
   translate         = TRUE,                 # Portuguese date label
-  tsa_url           = "http://timestamp.digicert.com"  # optional: PAdES-B-T
+  tsa_url           = "http://timestamp.digicert.com",
+  pades_level       = "blta"                # bb | bt | blt | blta
 )
 ```
 

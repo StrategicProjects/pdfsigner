@@ -90,9 +90,18 @@ pub(crate) fn request_timestamp(tsa_url: &str, signature: &[u8]) -> Result<Conte
 
 /// Minimal HTTP/1.1 POST over plain TCP. Returns the response body.
 fn http_post(url: &str, content_type: &str, body: &[u8]) -> Result<Vec<u8>> {
-    let rest = url.strip_prefix("http://").ok_or_else(|| {
-        Error::Crypto("TSA URL must start with http:// (https is not supported)".into())
-    })?;
+    http_request("POST", url, Some(content_type), body)
+}
+
+/// Minimal HTTP/1.1 GET over plain TCP (used to fetch CRLs for the DSS).
+pub(crate) fn http_get(url: &str) -> Result<Vec<u8>> {
+    http_request("GET", url, None, &[])
+}
+
+fn http_request(method: &str, url: &str, content_type: Option<&str>, body: &[u8]) -> Result<Vec<u8>> {
+    let rest = url
+        .strip_prefix("http://")
+        .ok_or_else(|| Error::Crypto("URL must start with http:// (https is not supported)".into()))?;
     let (authority, path) = match rest.find('/') {
         Some(i) => (&rest[..i], &rest[i..]),
         None => (rest, "/"),
@@ -106,13 +115,15 @@ fn http_post(url: &str, content_type: &str, body: &[u8]) -> Result<Vec<u8>> {
     stream.set_read_timeout(Some(Duration::from_secs(20))).ok();
     stream.set_write_timeout(Some(Duration::from_secs(20))).ok();
 
-    let header = format!(
-        "POST {path} HTTP/1.1\r\nHost: {host}\r\nContent-Type: {content_type}\r\n\
-         Content-Length: {}\r\nConnection: close\r\nUser-Agent: pdf_signer\r\n\r\n",
-        body.len()
-    );
+    let mut header = format!("{method} {path} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\nUser-Agent: pdf_signer\r\n");
+    if let Some(ct) = content_type {
+        header.push_str(&format!("Content-Type: {ct}\r\nContent-Length: {}\r\n", body.len()));
+    }
+    header.push_str("\r\n");
     stream.write_all(header.as_bytes())?;
-    stream.write_all(body)?;
+    if !body.is_empty() {
+        stream.write_all(body)?;
+    }
     stream.flush().ok();
 
     let mut raw = Vec::new();
@@ -127,10 +138,7 @@ fn http_post(url: &str, content_type: &str, body: &[u8]) -> Result<Vec<u8>> {
 
     let status_line = String::from_utf8_lossy(head.split(|&b| b == b'\n').next().unwrap_or(&[]));
     if !status_line.contains(" 200") {
-        return Err(Error::Crypto(format!(
-            "TSA HTTP error: {}",
-            status_line.trim()
-        )));
+        return Err(Error::Crypto(format!("HTTP error: {}", status_line.trim())));
     }
 
     if String::from_utf8_lossy(head)

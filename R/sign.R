@@ -35,9 +35,12 @@
 #' @param border Draw a border around the visible box.
 #' @param translate If `TRUE`, the date label in the visible box is in
 #'   Portuguese; otherwise English.
-#' @param tsa_url Optional RFC 3161 Time-Stamping Authority `http://` URL. When
-#'   supplied, a signature timestamp is fetched and embedded, producing a
-#'   PAdES-B-T signature. Requires network access at signing time.
+#' @param tsa_url Optional RFC 3161 Time-Stamping Authority `http://` URL.
+#'   Required for `pades_level` `"bt"` and above. Requires network access.
+#' @param pades_level PAdES conformance level: `"bb"` (baseline, default),
+#'   `"bt"` (+ signature timestamp), `"blt"` (+ DSS with certificates and CRLs),
+#'   or `"blta"` (+ a document timestamp over the whole file). Levels `"bt"` and
+#'   above need `tsa_url`.
 #'
 #' @return Invisibly, the path to the signed PDF. Raises an error on failure.
 #' @examples
@@ -60,7 +63,12 @@ sign_pdf <- function(pdf_file, output_file,
                      reason = NULL, signer_name = NULL,
                      page = 1,
                      x = 36, y = 36, width = 320, height = 64, font_size = 8,
-                     border = TRUE, translate = FALSE, tsa_url = NULL) {
+                     border = TRUE, translate = FALSE, tsa_url = NULL,
+                     pades_level = c("bb", "bt", "blt", "blta")) {
+  pades_level <- match.arg(pades_level)
+  if (pades_level != "bb" && (is.null(tsa_url) || !nzchar(tsa_url))) {
+    stop("pades_level '", pades_level, "' requires a `tsa_url`.")
+  }
 
   if (!file.exists(pdf_file)) {
     stop("The specified PDF file does not exist: ", pdf_file)
@@ -108,7 +116,8 @@ sign_pdf <- function(pdf_file, output_file,
     font_size = as.numeric(font_size),
     appearance_text = appearance_text,
     border = isTRUE(border),
-    tsa_url = tsa_url %||% ""
+    tsa_url = tsa_url %||% "",
+    pades_level = pades_level
   )
 
   message("PDF successfully signed: ", output_file)

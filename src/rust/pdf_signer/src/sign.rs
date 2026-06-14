@@ -2,6 +2,7 @@
 
 use std::path::Path;
 
+use der::Encode;
 use lopdf::{Dictionary, Document, Object, ObjectId, StringFormat};
 
 use crate::crypto::cms_sign;
@@ -9,6 +10,22 @@ use crate::error::Error;
 use crate::incremental::{last_startxref, Incremental};
 use crate::util::{find_sub, hex_encode};
 use crate::Result;
+
+/// PAdES conformance level to produce.
+///
+/// Levels are cumulative: each adds material on top of the previous one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
+pub enum PadesLevel {
+    /// Baseline: CAdES `signing-certificate-v2`.
+    #[default]
+    Bb,
+    /// B-B + an RFC 3161 signature timestamp (needs `tsa_url`).
+    Bt,
+    /// B-T + a Document Security Store (certificates + CRLs).
+    Blt,
+    /// B-LT + a document timestamp over the whole file (needs `tsa_url`).
+    Blta,
+}
 
 /// A visible signature appearance, rendered as the widget's `/AP /N` stream.
 ///
@@ -69,9 +86,11 @@ pub struct SignOptions {
     /// Optional visible appearance. When `None`, the signature is invisible
     /// (zero-area widget).
     pub appearance: Option<Appearance>,
-    /// Optional RFC 3161 Time-Stamping Authority `http://` URL. When set, a
-    /// signature timestamp is fetched and embedded, producing PAdES-B-T.
+    /// Optional RFC 3161 Time-Stamping Authority `http://` URL. Required for
+    /// `PadesLevel::Bt` and above.
     pub tsa_url: Option<String>,
+    /// Target PAdES conformance level.
+    pub pades_level: PadesLevel,
 }
 
 impl Default for SignOptions {
@@ -87,6 +106,7 @@ impl Default for SignOptions {
             signing_time: None,
             appearance: None,
             tsa_url: None,
+            pades_level: PadesLevel::Bb,
         }
     }
 }
@@ -134,12 +154,11 @@ pub fn sign_pdf_bytes(
     let mut signed_bytes = Vec::with_capacity(p + (total - q));
     signed_bytes.extend_from_slice(&buf[..p]);
     signed_bytes.extend_from_slice(&buf[q..]);
-    let der = cms_sign(
-        keystore_p12,
-        password,
-        &signed_bytes,
-        opts.tsa_url.as_deref(),
-    )?;
+    // A signature timestamp (B-T+) needs a TSA; B-B does not.
+    let sig_tsa = (opts.pades_level >= PadesLevel::Bt)
+        .then_some(opts.tsa_url.as_deref())
+        .flatten();
+    let der = cms_sign(keystore_p12, password, &signed_bytes, sig_tsa)?;
 
     // 6. Write the signature hex into the placeholder.
     let hex = hex_encode(&der);
@@ -156,7 +175,110 @@ pub fn sign_pdf_bytes(
     }
     region[..hex.len()].copy_from_slice(&hex);
 
+    // 7. PAdES-B-LT: add a Document Security Store with the validation material.
+    if opts.pades_level >= PadesLevel::Blt {
+        let material = crate::dss::collect_validation_material(&der)?;
+        buf = crate::dss::add_dss(&buf, &material)?;
+    }
+
+    // 8. PAdES-B-LTA: add a document timestamp over the whole file (incl. DSS).
+    if opts.pades_level >= PadesLevel::Blta {
+        let url = opts
+            .tsa_url
+            .as_deref()
+            .ok_or_else(|| Error::Crypto("PAdES-B-LTA requires a tsa_url".into()))?;
+        buf = add_document_timestamp(&buf, url, opts.signature_capacity)?;
+    }
+
     Ok(buf)
+}
+
+/// Add a document timestamp (`/DocTimeStamp`, `/SubFilter /ETSI.RFC3161`) over
+/// the whole file as an incremental update — the archival anchor of PAdES-B-LTA.
+fn add_document_timestamp(pdf: &[u8], tsa_url: &str, capacity: usize) -> Result<Vec<u8>> {
+    let mut buf = build_doctimestamp_update(pdf, capacity)?;
+
+    let start = pdf.len();
+    let (lt, gt) = locate_contents_placeholder(&buf, capacity, start)?;
+    let p = lt;
+    let q = gt + 1;
+    let total = buf.len();
+    patch_byte_range(&mut buf, start, p as i64, q as i64, (total - q) as i64)?;
+
+    let mut signed = Vec::with_capacity(p + (total - q));
+    signed.extend_from_slice(&buf[..p]);
+    signed.extend_from_slice(&buf[q..]);
+
+    // The timestamp imprint is over the document byte range itself.
+    let token = crate::tsa::request_timestamp(tsa_url, &signed)?;
+    let token_der = token.to_der().map_err(|e| Error::Malformed(e.to_string()))?;
+
+    let hex = hex_encode(&token_der);
+    let capacity_hex = capacity * 2;
+    if hex.len() > capacity_hex {
+        return Err(Error::PlaceholderTooSmall {
+            needed: token_der.len(),
+            capacity,
+        });
+    }
+    let region = &mut buf[lt + 1..lt + 1 + capacity_hex];
+    for b in region.iter_mut() {
+        *b = b'0';
+    }
+    region[..hex.len()].copy_from_slice(&hex);
+    Ok(buf)
+}
+
+/// Incremental update carrying an empty `/DocTimeStamp` signature field.
+fn build_doctimestamp_update(pdf: &[u8], capacity: usize) -> Result<Vec<u8>> {
+    let doc = Document::load_mem(pdf)?;
+    let root_id = doc.trailer.get(b"Root")?.as_reference()?;
+    let page_id = nth_page_id(&doc, 1)?;
+
+    let mut inc = Incremental::new(pdf);
+    let mut next_id = doc.max_id + 1;
+    let mut alloc = || {
+        let id = (next_id, 0u16);
+        next_id += 1;
+        id
+    };
+
+    let ts_id = alloc();
+    inc.add(ts_id, build_doctimestamp_dict(capacity));
+    let widget_id = alloc();
+    // Reuse the invisible-widget builder (no appearance), pointing at the TS dict.
+    inc.add(widget_id, build_widget(&SignOptions::default(), ts_id, None));
+
+    apply_widget_to_page(&doc, &mut inc, page_id, widget_id)?;
+    apply_field_to_acroform(&doc, &mut inc, root_id, widget_id)?;
+
+    let size = next_id;
+    let prev = last_startxref(pdf)
+        .ok_or_else(|| Error::Malformed("original PDF has no startxref".into()))?;
+    let id_array = doc.trailer.get(b"ID").ok().cloned();
+    Ok(inc.render(size, root_id, prev, id_array))
+}
+
+/// The `/DocTimeStamp` dictionary with ByteRange/Contents placeholders.
+fn build_doctimestamp_dict(capacity: usize) -> Object {
+    let mut sig = Dictionary::new();
+    sig.set("Type", Object::Name(b"DocTimeStamp".to_vec()));
+    sig.set("Filter", Object::Name(b"Adobe.PPKLite".to_vec()));
+    sig.set("SubFilter", Object::Name(b"ETSI.RFC3161".to_vec()));
+    sig.set(
+        "ByteRange",
+        Object::Array(vec![
+            Object::Integer(0),
+            Object::Integer(9_999_999_999),
+            Object::Integer(9_999_999_999),
+            Object::Integer(9_999_999_999),
+        ]),
+    );
+    sig.set(
+        "Contents",
+        Object::String(vec![0u8; capacity], StringFormat::Hexadecimal),
+    );
+    Object::Dictionary(sig)
 }
 
 /// Assemble the incremental-update section (with signature placeholders) and

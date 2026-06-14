@@ -1,5 +1,5 @@
 use extendr_api::prelude::*;
-use pdf_signer::{sign_pdf_file, verify_pdf_file, Appearance, SignOptions};
+use pdf_signer::{sign_pdf_file, verify_pdf_file, Appearance, PadesLevel, SignOptions};
 
 /// Empty string -> None, otherwise Some.
 fn opt(s: &str) -> Option<String> {
@@ -37,7 +37,14 @@ fn rust_sign_pdf(
     appearance_text: &str,
     border: bool,
     tsa_url: &str,
+    pades_level: &str,
 ) -> std::result::Result<(), Error> {
+    let level = match pades_level {
+        "bt" => PadesLevel::Bt,
+        "blt" => PadesLevel::Blt,
+        "blta" => PadesLevel::Blta,
+        _ => PadesLevel::Bb,
+    };
     let appearance = visible.then(|| Appearance {
         page: page.max(1) as usize,
         x,
@@ -57,6 +64,7 @@ fn rust_sign_pdf(
         signing_time: opt(signing_time),
         appearance,
         tsa_url: opt(tsa_url),
+        pades_level: level,
         ..Default::default()
     };
 

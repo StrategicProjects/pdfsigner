@@ -212,6 +212,22 @@ fn apply_timestamp(ci: ContentInfo, tsa_url: &str) -> Result<Vec<u8>> {
     new_ci.to_der().map_err(crypto)
 }
 
+/// Lightweight check that a `/DocTimeStamp` `/Contents` is a well-formed RFC
+/// 3161 token whose message imprint is bound to `data` (the document byte
+/// range). Full TSA-signature/chain validation is left for a future B-LT
+/// verifier; this confirms structure + binding.
+pub(crate) fn verify_doc_timestamp(token_der: &[u8], data: &[u8]) -> Result<()> {
+    ContentInfo::from_der(token_der).map_err(crypto)?;
+    let imprint = Sha256::digest(data);
+    if token_der.windows(imprint.len()).any(|w| w == imprint.as_slice()) {
+        Ok(())
+    } else {
+        Err(Error::Verification(
+            "timestamp imprint does not match the document".into(),
+        ))
+    }
+}
+
 /// Verify a detached CMS `der` (a ContentInfo) against `data`.
 ///
 /// Checks that the embedded `messageDigest` attribute matches `SHA-256(data)`
