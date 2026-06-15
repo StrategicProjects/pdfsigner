@@ -36,10 +36,9 @@ $(STATLIB):
 	export LIBRARY_PATH="$(LIBRARY_PATH);$(CURDIR)/$(TARGET_DIR)/libgcc_mock" && \
 	RUSTFLAGS="$(RUSTFLAGS) --print=native-static-libs" cargo build @CRAN_FLAGS@ --target=$(TARGET) --lib @PROFILE@ --manifest-path=rust/Cargo.toml --target-dir=$(TARGET_DIR)
 
-	# Generate wrappers
-	export CARGO_HOME=$(CARGOTMP) && \
-	export PATH="$(PATH):$(HOME)/.cargo/bin" && \
-	cargo run @CRAN_FLAGS@ --bin document --target $(TARGET) --manifest-path=./rust/Cargo.toml --target-dir $(TARGET_DIR)
+	# The extendr R wrappers are committed (generated in development with
+	# rextendr::document()), so they are not regenerated here. Running the
+	# `document` helper during install fails when cross-compiling on Windows.
 
 	# Always clean up CARGOTMP
 	rm -Rf $(CARGOTMP);
