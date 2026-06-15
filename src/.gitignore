@@ -3,6 +3,7 @@
 *.dll
 target
 .cargo
+vendor
 rust/vendor
 Makevars
 Makevars.win
