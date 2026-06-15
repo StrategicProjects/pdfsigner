@@ -100,14 +100,16 @@ openssl pkcs12 -export -inkey key.pem -in cert.pem -out keystore.p12
 
 ## Architecture
 
-    R: sign_pdf() / verify_pdf_signature()
-            │  (extendr)
-    Rust wrapper  (src/rust)  ──▶  pdf_signer crate  (src/rust/pdf_signer)
-                                     lopdf + cms + rsa + p12-keystore (pure Rust)
+![pdfsigner architecture: the R interface (sign_pdf /
+verify_pdf_signature) calls the extendr bridge, which links the
+pure-Rust pdf_signer crate and its vendored dependencies, producing
+PAdES-signed PDFs and a verification
+report.](reference/figures/architecture.svg)
 
-The Rust crate dependencies are vendored under `src/rust/vendor.tar.xz`
-so the package builds offline (CRAN policy:
-`SystemRequirements: Cargo, rustc`).
+The R functions call a thin [extendr](https://extendr.rs/) bridge that
+links the pure-Rust **`pdf_signer`** crate. Every Rust dependency is
+vendored under `src/rust/vendor.tar.xz` so the package builds offline
+(CRAN policy: `SystemRequirements: Cargo, rustc`).
 
 ## License
 

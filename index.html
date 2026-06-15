@@ -137,11 +137,8 @@
 <div class="section level2">
 <h2 id="architecture">Architecture<a class="anchor" aria-label="anchor" href="#architecture"></a>
 </h2>
-<pre><code>R: sign_pdf() / verify_pdf_signature()
-        │  (extendr)
-Rust wrapper  (src/rust)  ──▶  pdf_signer crate  (src/rust/pdf_signer)
-                                 lopdf + cms + rsa + p12-keystore (pure Rust)</code></pre>
-<p>The Rust crate dependencies are vendored under <code>src/rust/vendor.tar.xz</code> so the package builds offline (CRAN policy: <code>SystemRequirements: Cargo, rustc</code>).</p>
+<p><img src="reference/figures/architecture.svg" alt="pdfsigner architecture: the R interface (sign_pdf / verify_pdf_signature) calls the extendr bridge, which links the pure-Rust pdf_signer crate and its vendored dependencies, producing PAdES-signed PDFs and a verification report." width="100%"></p>
+<p>The R functions call a thin <a href="https://extendr.rs/" class="external-link">extendr</a> bridge that links the pure-Rust <strong><code>pdf_signer</code></strong> crate. Every Rust dependency is vendored under <code>src/rust/vendor.tar.xz</code> so the package builds offline (CRAN policy: <code>SystemRequirements: Cargo, rustc</code>).</p>
 </div>
 <div class="section level2">
 <h2 id="license">License<a class="anchor" aria-label="anchor" href="#license"></a>
