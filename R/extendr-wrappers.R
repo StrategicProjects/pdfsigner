@@ -8,9 +8,11 @@ NULL
 #' Sign `pdf_file` with a PKCS#12 keystore, writing `output_file`.
 #'
 #' When `visible` is TRUE, a bordered signature box with `appearance_text`
-#' is drawn on `page` at `[x, y, width, height]`. Errors become R errors.
+#' is drawn on `page` at `[x, y, width, height]`. A non-empty `font_path`
+#' embeds a TrueType/OpenType font in the box; a non-empty `image_path` draws a
+#' PNG/JPEG logo. Errors become R errors.
 #' @export
-rust_sign_pdf <- function(pdf_file, output_file, keystore_path, keystore_password, reason, name, location, contact_info, signing_time, visible, page, x, y, width, height, font_size, appearance_text, border, tsa_url, pades_level) .Call(wrap__rust_sign_pdf, pdf_file, output_file, keystore_path, keystore_password, reason, name, location, contact_info, signing_time, visible, page, x, y, width, height, font_size, appearance_text, border, tsa_url, pades_level)
+rust_sign_pdf <- function(pdf_file, output_file, keystore_path, keystore_password, reason, name, location, contact_info, signing_time, visible, page, x, y, width, height, font_size, appearance_text, border, tsa_url, pades_level, font_path, image_path) .Call(wrap__rust_sign_pdf, pdf_file, output_file, keystore_path, keystore_password, reason, name, location, contact_info, signing_time, visible, page, x, y, width, height, font_size, appearance_text, border, tsa_url, pades_level, font_path, image_path)
 
 #' Verify all signatures in `pdf_file`. Returns a list with one named list per
 #' signature (`valid`, `signer`, `covers_whole_document`, `signed_len`,

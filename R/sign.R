@@ -32,6 +32,12 @@
 #' @param x,y,width,height Visible box geometry, in PDF points (origin at the
 #'   page's bottom-left).
 #' @param font_size Font size for the visible box, in points.
+#' @param font Optional path to a TrueType/OpenType font file (`.ttf`/`.otf`) to
+#'   embed in the visible box. When `NULL`, the standard Helvetica is used. Only
+#'   the WinAnsi (Latin-1) glyph range is embedded. Ignored for invisible
+#'   signatures.
+#' @param image Optional path to a PNG or JPEG logo drawn in the visible box.
+#'   Ignored for invisible signatures.
 #' @param border Draw a border around the visible box.
 #' @param translate If `TRUE`, the date label in the visible box is in
 #'   Portuguese; otherwise English.
@@ -63,6 +69,7 @@ sign_pdf <- function(pdf_file, output_file,
                      reason = NULL, signer_name = NULL,
                      page = 1,
                      x = 36, y = 36, width = 320, height = 64, font_size = 8,
+                     font = NULL, image = NULL,
                      border = TRUE, translate = FALSE, tsa_url = NULL,
                      pades_level = c("bb", "bt", "blt", "blta")) {
   pades_level <- match.arg(pades_level)
@@ -84,6 +91,12 @@ sign_pdf <- function(pdf_file, output_file,
   }
   if (!is.numeric(page) || page < 1) {
     stop("`page` must be a positive number.")
+  }
+  if (!is.null(font) && !file.exists(font)) {
+    stop("The specified font file does not exist: ", font)
+  }
+  if (!is.null(image) && !file.exists(image)) {
+    stop("The specified image file does not exist: ", image)
   }
 
   visible <- !is.null(signtext) && nzchar(signtext)
@@ -117,7 +130,9 @@ sign_pdf <- function(pdf_file, output_file,
     appearance_text = appearance_text,
     border = isTRUE(border),
     tsa_url = tsa_url %||% "",
-    pades_level = pades_level
+    pades_level = pades_level,
+    font_path = if (is.null(font)) "" else path.expand(font),
+    image_path = if (is.null(image)) "" else path.expand(image)
   )
 
   message("PDF successfully signed: ", output_file)

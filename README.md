@@ -49,6 +49,8 @@ sign_pdf(
   validate_link     = "https://castlab.org/validate",
   reason            = "Approval",
   translate         = TRUE,                 # Portuguese date label
+  font              = "Arial.ttf",          # embed a TrueType/OpenType font
+  image             = "logo.png",           # draw a PNG/JPEG logo in the box
   tsa_url           = "http://timestamp.digicert.com",
   pades_level       = "blta"                # bb | bt | blt | blta
 )
@@ -56,7 +58,9 @@ sign_pdf(
 
 A *visible* signature box is drawn whenever `signtext` is non-empty; geometry is
 controlled by `page`, `x`, `y`, `width`, `height`, `font_size` and `border`.
-Omit `signtext` for an invisible signature.
+Pass `font` to embed a TrueType/OpenType font (WinAnsi/Latin-1 glyphs; the
+default is Helvetica) and `image` to draw a PNG/JPEG logo in the box. Omit
+`signtext` for an invisible signature.
 
 ### `verify_pdf_signature()`
 

@@ -24,10 +24,14 @@ rust_sign_pdf(
   appearance_text,
   border,
   tsa_url,
-  pades_level
+  pades_level,
+  font_path,
+  image_path
 )
 }
 \description{
 When \code{visible} is TRUE, a bordered signature box with \code{appearance_text}
-is drawn on \code{page} at \verb{[x, y, width, height]}. Errors become R errors.
+is drawn on \code{page} at \verb{[x, y, width, height]}. A non-empty \code{font_path}
+embeds a TrueType/OpenType font in the box; a non-empty \code{image_path} draws a
+PNG/JPEG logo. Errors become R errors.
 }

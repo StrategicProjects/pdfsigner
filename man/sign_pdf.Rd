@@ -19,6 +19,8 @@ sign_pdf(
   width = 320,
   height = 64,
   font_size = 8,
+  font = NULL,
+  image = NULL,
   border = TRUE,
   translate = FALSE,
   tsa_url = NULL,
@@ -50,6 +52,14 @@ dictionary.}
 page's bottom-left).}
 
 \item{font_size}{Font size for the visible box, in points.}
+
+\item{font}{Optional path to a TrueType/OpenType font file (\code{.ttf}/\code{.otf}) to
+embed in the visible box. When \code{NULL}, the standard Helvetica is used. Only
+the WinAnsi (Latin-1) glyph range is embedded. Ignored for invisible
+signatures.}
+
+\item{image}{Optional path to a PNG or JPEG logo drawn in the visible box.
+Ignored for invisible signatures.}
 
 \item{border}{Draw a border around the visible box.}
 

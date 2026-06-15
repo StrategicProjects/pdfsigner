@@ -13,10 +13,23 @@ fn opt(s: &str) -> Option<String> {
     }
 }
 
+/// Read a file into bytes when `path` is non-empty; an empty path means "none".
+fn read_file_opt(path: &str) -> std::result::Result<Option<Vec<u8>>, Error> {
+    if path.is_empty() {
+        Ok(None)
+    } else {
+        std::fs::read(path)
+            .map(Some)
+            .map_err(|e| Error::Other(format!("reading '{path}': {e}")))
+    }
+}
+
 /// Sign `pdf_file` with a PKCS#12 keystore, writing `output_file`.
 ///
 /// When `visible` is TRUE, a bordered signature box with `appearance_text`
-/// is drawn on `page` at `[x, y, width, height]`. Errors become R errors.
+/// is drawn on `page` at `[x, y, width, height]`. A non-empty `font_path`
+/// embeds a TrueType/OpenType font in the box; a non-empty `image_path` draws a
+/// PNG/JPEG logo. Errors become R errors.
 /// @export
 #[extendr]
 #[allow(clippy::too_many_arguments)]
@@ -41,6 +54,8 @@ fn rust_sign_pdf(
     border: bool,
     tsa_url: &str,
     pades_level: &str,
+    font_path: &str,
+    image_path: &str,
 ) -> std::result::Result<(), Error> {
     let level = match pades_level {
         "bt" => PadesLevel::Bt,
@@ -48,21 +63,24 @@ fn rust_sign_pdf(
         "blta" => PadesLevel::Blta,
         _ => PadesLevel::Bb,
     };
-    let appearance = visible.then(|| Appearance {
-        page: page.max(1) as usize,
-        x,
-        y,
-        width,
-        height,
-        font_size,
-        text: appearance_text.to_string(),
-        border,
-        // Embedded font / logo are available in the library but not yet exposed
-        // through the R API; the box uses the standard Helvetica font.
-        font: None,
-        image: None,
-        image_rect: None,
-    });
+    let appearance = visible
+        .then(|| {
+            Ok::<_, Error>(Appearance {
+                page: page.max(1) as usize,
+                x,
+                y,
+                width,
+                height,
+                font_size,
+                text: appearance_text.to_string(),
+                border,
+                font: read_file_opt(font_path)?,
+                image: read_file_opt(image_path)?,
+                // Default placement: a square logo on the left, sized to the box.
+                image_rect: None,
+            })
+        })
+        .transpose()?;
 
     let opts = SignOptions {
         reason: opt(reason),
