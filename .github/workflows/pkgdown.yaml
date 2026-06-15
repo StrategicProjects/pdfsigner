@@ -39,8 +39,9 @@ jobs:
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
           # tidytemplate is the pkgdown theme referenced in _pkgdown.yml; it
-          # lives on GitHub, not CRAN, so install it explicitly.
-          extra-packages: any::pkgdown, local::., tidyverse/tidytemplate
+          # lives on GitHub, not CRAN, so install it explicitly. Pinned to an
+          # immutable commit SHA for a reproducible, auditable build.
+          extra-packages: any::pkgdown, local::., tidyverse/tidytemplate@f7bdedf79f3714e08acba747cccdf0e28ef80d18
           needs: website
 
       - name: Build site
