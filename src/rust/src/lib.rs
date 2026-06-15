@@ -147,7 +147,7 @@ fn rust_verify_pdf(
 }
 
 extendr_module! {
-    mod signer;
+    mod pdfsigner;
     fn rust_sign_pdf;
     fn rust_verify_pdf;
 }

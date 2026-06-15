@@ -1,10 +1,10 @@
 
-# signer <a href="https://github.com/StrategicProjects/signer"><img src="man/figures/logo.png" align="right" height="138" alt="signer website" /></a>
+# pdfsigner <a href="https://github.com/StrategicProjects/pdfsigner"><img src="man/figures/logo.png" align="right" height="138" alt="pdfsigner website" /></a>
 
-**signer** is an R package to digitally **sign** PDF documents with a PKCS#12
+**pdfsigner** is an R package to digitally **sign** PDF documents with a PKCS#12
 keystore and **verify** their signatures.
 
-As of v0.2.0 the package is powered by a bundled, **pure-Rust backend** (the
+The package is powered by a bundled, **pure-Rust backend** (the
 [`pdf_signer`](https://github.com/StrategicProjects/pdf_signer) crate, wrapped
 with [extendr](https://extendr.rs/)). It no longer shells out to Java
 (`BatchPDFSignPortable.jar`) or Poppler (`pdfsig`): **no Java runtime, OpenSSL,
@@ -18,7 +18,7 @@ Install Rust from <https://rustup.rs>, then:
 
 ```r
 # install.packages("remotes")
-remotes::install_github("StrategicProjects/signer")
+remotes::install_github("StrategicProjects/pdfsigner")
 ```
 
 ## What it does
@@ -38,7 +38,7 @@ remotes::install_github("StrategicProjects/signer")
 ### `sign_pdf()`
 
 ```r
-library(signer)
+library(pdfsigner)
 
 sign_pdf(
   pdf_file          = "input.pdf",

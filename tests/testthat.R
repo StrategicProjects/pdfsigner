@@ -1,4 +1,4 @@
 library(testthat)
-library(signer)
+library(pdfsigner)
 
-test_check("signer")
+test_check("pdfsigner")

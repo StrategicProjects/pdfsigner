@@ -1,7 +1,7 @@
 TARGET_DIR = ./rust/target
 LIBDIR = $(TARGET_DIR)/@LIBDIR@
-STATLIB = $(LIBDIR)/libsigner.a
-PKG_LIBS = -L$(LIBDIR) -lsigner
+STATLIB = $(LIBDIR)/libpdfsigner.a
+PKG_LIBS = -L$(LIBDIR) -lpdfsigner
 
 all: $(SHLIB) rust_clean
 
@@ -46,7 +46,11 @@ $(STATLIB):
 	rm -Rf $(CARGOTMP);
 
 rust_clean: $(SHLIB)
-	rm -Rf $(CARGOTMP) $(VENDOR_DIR) @CLEAN_TARGET@
+	# Leading '-' so a cleanup failure never fails the build. On macOS APFS
+	# `rm -Rf` of the freshly-written target tree can race with Spotlight
+	# indexing and return ENOTEMPTY; the artefacts are outside the installed
+	# package, so ignoring a stray cleanup error is safe.
+	-rm -Rf $(CARGOTMP) $(VENDOR_DIR) @CLEAN_TARGET@
 
 clean:
 	rm -Rf $(SHLIB) $(STATLIB) $(OBJECTS) $(TARGET_DIR) $(VENDOR_DIR)

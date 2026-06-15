@@ -1,7 +1,7 @@
 Authors and copyright holders of the bundled Rust dependencies
 =============================================================
 
-The signer package bundles its compiled Rust backend together with the
+The pdfsigner package bundles its compiled Rust backend together with the
 source code of the Rust crates it depends on (vendored under
 src/rust/vendor.tar.xz for an offline, network-free build). Each of those
 crates is the work of its own authors and is distributed under its own

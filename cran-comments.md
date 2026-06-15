@@ -1,8 +1,8 @@
 ## Submission notes
 
-This is the first CRAN submission of `signer`.
+This is the first CRAN submission of `pdfsigner`.
 
-`signer` digitally signs and verifies PDF documents. All cryptography and PDF
+`pdfsigner` digitally signs and verifies PDF documents. All cryptography and PDF
 manipulation are performed by a bundled, pure-Rust backend (the `pdf_signer`
 crate); there is no Java runtime, OpenSSL, or external command-line dependency.
 
@@ -26,14 +26,6 @@ The vendored crates remain under the copyright of their respective authors and
 are distributed under permissive licences (MIT, Apache-2.0, BSD, ISC, Zlib,
 Unicode-3.0, 0BSD, Unlicense or CDLA-Permissive-2.0). They are credited as
 copyright holders in `Authors@R` and enumerated in `inst/AUTHORS`.
-
-## Package name
-
-There is a Bioconductor package named `signeR`, which differs from `signer`
-only in letter case. The names are distinct words (`signer` = "one who signs";
-`signeR` = "signature exposure in R") with unrelated scopes (PDF signing vs.
-mutational-signature analysis). We are happy to rename the package if CRAN
-considers the case-insensitive clash unacceptable.
 
 ## Test environments
 

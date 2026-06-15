@@ -1,4 +1,4 @@
-url: https://monitoramento.sepe.pe.gov.br/signer
+url: https://monitoramento.sepe.pe.gov.br/pdfsigner
 template:
   light-switch: true
   trailing_slash_redirect: true
@@ -12,7 +12,7 @@ navbar:
   components:
     github:
       icon: fa-github
-      href: https://github.com/StrategicProjects/signer
+      href: https://github.com/StrategicProjects/pdfsigner
       aria-label: Github
 
 footer:
@@ -22,7 +22,7 @@ footer:
   components:
       #p: "\n\n"
       rmd: |
-        **signer** is part of an ecosystem of R packages for data analysis and
+        **pdfsigner** is part of an ecosystem of R packages for data analysis and
         computational document processing<br>developed at the [Secretaria Executiva
         de Monitoramento Estratégico](https://monitoramento.sepe.pe.gov.br).
       developed_by: |

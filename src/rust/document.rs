@@ -6,13 +6,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         # nolint start\n\
         \n\
         #' @usage NULL\n\
-        #' @useDynLib signer, .registration = TRUE\n\
+        #' @useDynLib pdfsigner, .registration = TRUE\n\
         NULL\n\
         \n\
     ";
     let footer = "# nolint end\n";
-    let wrappers = signer::get_signer_metadata()
-        .make_r_wrappers(true, "signer")
+    let wrappers = pdfsigner::get_pdfsigner_metadata()
+        .make_r_wrappers(true, "pdfsigner")
         .map_err(|e| format!("failed to generate wrappers: {e}"))?;
     std::fs::write(wrapper_path, format!("{header}{wrappers}{footer}"))
         .map_err(|e| format!("failed to write {wrapper_path}: {e}"))?;

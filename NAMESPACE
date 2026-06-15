@@ -2,4 +2,4 @@
 
 export(sign_pdf)
 export(verify_pdf_signature)
-useDynLib(signer, .registration = TRUE)
+useDynLib(pdfsigner, .registration = TRUE)

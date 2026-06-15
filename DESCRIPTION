@@ -1,4 +1,4 @@
-Package: signer
+Package: pdfsigner
 Title: Digitally Sign and Verify PDF Documents
 Type: Package
 Version: 0.2.2
@@ -30,15 +30,15 @@ Suggests:
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 License: GPL-3
-Copyright: The signer package and its bundled 'pdf_signer' Rust backend are
+Copyright: The pdfsigner package and its bundled 'pdf_signer' Rust backend are
     released under GPL-3. The build vendors the source of third-party Rust
     crates (src/rust/vendor.tar.xz) that remain under the copyright of their
     respective authors and are licensed under permissive terms (MIT,
     Apache-2.0, BSD, ISC, Zlib, Unicode-3.0, 0BSD, Unlicense or
     CDLA-Permissive-2.0); see the inst/AUTHORS file for the full list.
 Encoding: UTF-8
-URL: https://github.com/StrategicProjects/signer
-BugReports: https://github.com/StrategicProjects/signer/issues
+URL: https://github.com/StrategicProjects/pdfsigner
+BugReports: https://github.com/StrategicProjects/pdfsigner/issues
 SystemRequirements: Cargo (Rust's package manager), rustc
 Config/rextendr/version: 0.5.0
 Roxygen: list(markdown = TRUE)

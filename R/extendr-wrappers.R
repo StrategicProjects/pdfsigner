@@ -2,7 +2,7 @@
 # nolint start
 
 #' @usage NULL
-#' @useDynLib signer, .registration = TRUE
+#' @useDynLib pdfsigner, .registration = TRUE
 NULL
 
 #' Sign `pdf_file` with a PKCS#12 keystore, writing `output_file`.

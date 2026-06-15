@@ -1,4 +1,4 @@
-#' signer: native PDF signing and verification
+#' pdfsigner: native PDF signing and verification
 #'
 #' Digitally sign PDF documents with a PKCS#12 keystore and verify their
 #' signatures. The heavy lifting is done by a bundled, pure-Rust backend
