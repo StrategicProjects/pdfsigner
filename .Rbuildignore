@@ -6,5 +6,15 @@
 ^src/\.cargo$
 ^src/rust/vendor$
 ^src/rust/target$
+^src/rust/.*/target$
+^src/rust/pdf_signer/Cargo\.lock$
 ^src/Makevars$
 ^src/Makevars\.win$
+^cran-comments\.md$
+^LICENSE$
+^\.Rhistory$
+^\.claude$
+^\.DS_Store$
+^.*\.DS_Store$
+^.*\.tar\.gz$
+^.*\.Rcheck$

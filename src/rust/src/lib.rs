@@ -30,7 +30,9 @@ fn read_file_opt(path: &str) -> std::result::Result<Option<Vec<u8>>, Error> {
 /// is drawn on `page` at `[x, y, width, height]`. A non-empty `font_path`
 /// embeds a TrueType/OpenType font in the box; a non-empty `image_path` draws a
 /// PNG/JPEG logo. Errors become R errors.
-/// @export
+///
+/// Internal: the user-facing wrapper is [`sign_pdf()`].
+/// @noRd
 #[extendr]
 #[allow(clippy::too_many_arguments)]
 fn rust_sign_pdf(
@@ -107,7 +109,9 @@ fn rust_sign_pdf(
 /// Verify all signatures in `pdf_file`. Returns a list with one named list per
 /// signature (`valid`, `signer`, `covers_whole_document`, `signed_len`,
 /// `byte_range`, `detail`). An empty list means no signatures were found.
-/// @export
+///
+/// Internal: the user-facing wrapper is [`verify_pdf_signature()`].
+/// @noRd
 #[extendr]
 fn rust_verify_pdf(
     pdf_file: &str,

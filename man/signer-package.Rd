@@ -29,5 +29,10 @@ Authors:
   \item Diogo Bezerra \email{diogo.bezerra@ufpe.br}
 }
 
+Other contributors:
+\itemize{
+  \item Authors of the vendored Rust crates (see inst/AUTHORS for the bundled crates and their licences) [contributor, copyright holder]
+}
+
 }
 \keyword{internal}

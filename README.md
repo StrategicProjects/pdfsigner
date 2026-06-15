@@ -1,12 +1,12 @@
 
-# signer <a href="https://monitoramento.sepe.pe.gov.br/signer"><img src="man/figures/logo.png" align="right" height="138" alt="signer website" /></a>
+# signer <a href="https://github.com/StrategicProjects/signer"><img src="man/figures/logo.png" align="right" height="138" alt="signer website" /></a>
 
 **signer** is an R package to digitally **sign** PDF documents with a PKCS#12
 keystore and **verify** their signatures.
 
 As of v0.2.0 the package is powered by a bundled, **pure-Rust backend** (the
 [`pdf_signer`](https://github.com/StrategicProjects/pdf_signer) crate, wrapped
-with [extendr](https://extendr.github.io/)). It no longer shells out to Java
+with [extendr](https://extendr.rs/)). It no longer shells out to Java
 (`BatchPDFSignPortable.jar`) or Poppler (`pdfsig`): **no Java runtime, OpenSSL,
 or external command-line tools are required** — only a Rust toolchain at install
 time.
