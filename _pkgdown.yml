@@ -1,4 +1,4 @@
-url: https://monitoramento.sepe.pe.gov.br/pdfsigner
+url: https://strategicprojects.github.io/pdfsigner
 template:
   light-switch: true
   trailing_slash_redirect: true

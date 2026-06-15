@@ -11,6 +11,7 @@
 ^src/Makevars$
 ^src/Makevars\.win$
 ^cran-comments\.md$
+^\.github$
 ^LICENSE$
 ^\.Rhistory$
 ^\.claude$
