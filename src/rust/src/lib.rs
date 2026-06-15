@@ -57,6 +57,11 @@ fn rust_sign_pdf(
         font_size,
         text: appearance_text.to_string(),
         border,
+        // Embedded font / logo are available in the library but not yet exposed
+        // through the R API; the box uses the standard Helvetica font.
+        font: None,
+        image: None,
+        image_rect: None,
     });
 
     let opts = SignOptions {

@@ -92,7 +92,7 @@ pub(crate) fn request_timestamp(tsa_url: &str, signature: &[u8]) -> Result<Conte
 }
 
 /// POST `body` to `url`. Returns the response body.
-fn http_post(url: &str, content_type: &str, body: &[u8]) -> Result<Vec<u8>> {
+pub(crate) fn http_post(url: &str, content_type: &str, body: &[u8]) -> Result<Vec<u8>> {
     fetch("POST", url, Some(content_type), body)
 }
 

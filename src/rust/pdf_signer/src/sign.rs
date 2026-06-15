@@ -49,6 +49,14 @@ pub struct Appearance {
     pub text: String,
     /// Draw a thin rectangle border around the box.
     pub border: bool,
+    /// Optional TrueType/OpenType font to embed (a simple WinAnsi font). When
+    /// `None`, the standard Helvetica is used.
+    pub font: Option<Vec<u8>>,
+    /// Optional logo image (PNG or JPEG) drawn in the box.
+    pub image: Option<Vec<u8>>,
+    /// Image placement `[x, y, width, height]` in box points. When `None`, the
+    /// image is drawn as a square on the left, sized to the box height.
+    pub image_rect: Option<[f64; 4]>,
 }
 
 impl Default for Appearance {
@@ -62,6 +70,9 @@ impl Default for Appearance {
             font_size: 8.0,
             text: String::new(),
             border: true,
+            font: None,
+            image: None,
+            image_rect: None,
         }
     }
 }
@@ -283,6 +294,13 @@ fn build_doctimestamp_dict(capacity: usize) -> Object {
 
 /// Assemble the incremental-update section (with signature placeholders) and
 /// return `original_bytes + update`.
+/// Allocate the next object id (generation 0) and advance the counter.
+fn alloc_id(next_id: &mut u32) -> ObjectId {
+    let id = (*next_id, 0u16);
+    *next_id += 1;
+    id
+}
+
 fn build_incremental_update(pdf: &[u8], opts: &SignOptions) -> Result<Vec<u8>> {
     let doc = Document::load_mem(pdf)?;
     let root_id = doc.trailer.get(b"Root")?.as_reference()?;
@@ -291,26 +309,17 @@ fn build_incremental_update(pdf: &[u8], opts: &SignOptions) -> Result<Vec<u8>> {
 
     let mut inc = Incremental::new(pdf);
     let mut next_id = doc.max_id + 1;
-    let mut alloc = || {
-        let id = (next_id, 0u16);
-        next_id += 1;
-        id
-    };
 
-    let sig_id = alloc();
+    let sig_id = alloc_id(&mut next_id);
     inc.add(sig_id, build_sig_dict(opts));
 
-    // Optional visible appearance: font + Form XObject.
+    // Optional visible appearance (font, image, Form XObject).
     let mut ap_ref = None;
     if let Some(app) = &opts.appearance {
-        let font_id = alloc();
-        inc.add(font_id, build_font_dict());
-        let xobj_id = alloc();
-        inc.add(xobj_id, build_appearance_xobject(app, font_id));
-        ap_ref = Some(xobj_id);
+        ap_ref = Some(crate::appearance::add_appearance(&mut inc, &mut next_id, app)?);
     }
 
-    let widget_id = alloc();
+    let widget_id = alloc_id(&mut next_id);
     inc.add(widget_id, build_widget(opts, sig_id, ap_ref));
 
     apply_widget_to_page(&doc, &mut inc, page_id, widget_id)?;
@@ -389,33 +398,6 @@ fn build_widget(opts: &SignOptions, sig_id: ObjectId, ap_ref: Option<ObjectId>) 
         }
     }
     Object::Dictionary(field)
-}
-
-/// A standard Helvetica font dictionary (WinAnsi) for the appearance.
-fn build_font_dict() -> Object {
-    let mut f = Dictionary::new();
-    f.set("Type", Object::Name(b"Font".to_vec()));
-    f.set("Subtype", Object::Name(b"Type1".to_vec()));
-    f.set("BaseFont", Object::Name(b"Helvetica".to_vec()));
-    f.set("Encoding", Object::Name(b"WinAnsiEncoding".to_vec()));
-    Object::Dictionary(f)
-}
-
-/// The appearance Form XObject (`/AP /N` stream).
-fn build_appearance_xobject(app: &Appearance, font_id: ObjectId) -> Object {
-    let mut fonts = Dictionary::new();
-    fonts.set("Helv", Object::Reference(font_id));
-    let mut resources = Dictionary::new();
-    resources.set("Font", Object::Dictionary(fonts));
-
-    let mut xobj = Dictionary::new();
-    xobj.set("Type", Object::Name(b"XObject".to_vec()));
-    xobj.set("Subtype", Object::Name(b"Form".to_vec()));
-    xobj.set("FormType", Object::Integer(1));
-    xobj.set("BBox", rect_array(0.0, 0.0, app.width, app.height));
-    xobj.set("Resources", Object::Dictionary(resources));
-
-    Object::Stream(lopdf::Stream::new(xobj, build_appearance_content(app)))
 }
 
 fn rect_array(x1: f64, y1: f64, x2: f64, y2: f64) -> Object {
@@ -535,102 +517,6 @@ fn add_field_to_form(
     }
     Ok(())
 }
-
-/// Render the appearance content stream: optional border + wrapped text.
-fn build_appearance_content(app: &Appearance) -> Vec<u8> {
-    let margin = 2.0_f64;
-    let fs = app.font_size;
-    let leading = fs * 1.2;
-    let max_w = (app.width - 2.0 * margin).max(1.0);
-    let lines = wrap_text(&app.text, max_w, fs);
-    let start_y = app.height - margin - fs;
-
-    let mut out: Vec<u8> = Vec::new();
-    out.extend_from_slice(b"q\n");
-    if app.border {
-        out.extend_from_slice(
-            format!(
-                "0.5 0.5 0.5 RG 0.75 w 0.50 0.50 {:.2} {:.2} re S\n",
-                app.width - 1.0,
-                app.height - 1.0
-            )
-            .as_bytes(),
-        );
-    }
-    out.extend_from_slice(b"0 0 0 rg\nBT\n");
-    out.extend_from_slice(format!("/Helv {:.2} Tf\n", fs).as_bytes());
-    out.extend_from_slice(format!("{:.2} TL\n", leading).as_bytes());
-    out.extend_from_slice(format!("{:.2} {:.2} Td\n", margin, start_y).as_bytes());
-    for (i, line) in lines.iter().enumerate() {
-        if i > 0 {
-            out.extend_from_slice(b"T* ");
-        }
-        out.push(b'(');
-        out.extend_from_slice(&encode_winansi_escaped(line));
-        out.extend_from_slice(b") Tj\n");
-    }
-    out.extend_from_slice(b"ET\nQ\n");
-    out
-}
-
-/// Encode a line to WinAnsi bytes and escape the PDF literal-string specials.
-/// Characters outside Latin-1 are replaced with `?` (best effort for the PoC).
-fn encode_winansi_escaped(s: &str) -> Vec<u8> {
-    let mut v = Vec::with_capacity(s.len() + 4);
-    for ch in s.chars() {
-        let b = if (ch as u32) <= 0xFF { ch as u8 } else { b'?' };
-        if matches!(b, b'(' | b')' | b'\\') {
-            v.push(b'\\');
-        }
-        v.push(b);
-    }
-    v
-}
-
-/// Greedy word-wrap using an approximate average Helvetica glyph width
-/// (~0.5 em). `\n` in the input forces hard line breaks.
-fn wrap_text(text: &str, max_width: f64, font_size: f64) -> Vec<String> {
-    let char_w = (font_size * 0.5).max(0.1);
-    let max_chars = ((max_width / char_w).floor() as usize).max(1);
-
-    let mut out = Vec::new();
-    for para in text.split('\n') {
-        let para = para.trim_end();
-        if para.is_empty() {
-            out.push(String::new());
-            continue;
-        }
-        let mut cur = String::new();
-        for word in para.split_whitespace() {
-            if cur.is_empty() {
-                if word.chars().count() > max_chars {
-                    // A single word longer than the line: hard-split it.
-                    let mut chunk = String::new();
-                    for c in word.chars() {
-                        if chunk.chars().count() >= max_chars {
-                            out.push(std::mem::take(&mut chunk));
-                        }
-                        chunk.push(c);
-                    }
-                    cur = chunk;
-                } else {
-                    cur = word.to_string();
-                }
-            } else if cur.chars().count() + 1 + word.chars().count() <= max_chars {
-                cur.push(' ');
-                cur.push_str(word);
-            } else {
-                out.push(std::mem::take(&mut cur));
-                cur = word.to_string();
-            }
-        }
-        if !cur.is_empty() {
-            out.push(cur);
-        }
-    }
-    out
-}
-
 /// Find the `< 00..00 >` placeholder at or after `start`, returning the `<` and
 /// `>` indices. `start` skips any prior (already-filled) signature.
 fn locate_contents_placeholder(
