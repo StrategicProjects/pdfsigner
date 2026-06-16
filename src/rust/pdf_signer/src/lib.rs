@@ -1,24 +1,24 @@
 //! # pdf_signer
 //!
-//! Minimal, self-contained library to **digitally sign** PDF documents with a
-//! PKCS#12 (`.p12`/`.pfx`) keystore and to **verify** existing signatures.
-//!
-//! This is a proof of concept intended to replace the bundled
-//! `BatchPDFSignPortable.jar` (Java/PDFBox) used by the R package `signer`,
-//! removing the Java runtime dependency and the 13 MB binary blob.
+//! Pure-Rust, self-contained library to **digitally sign** (PAdES) and
+//! **verify** PDF documents with a PKCS#12 (`.p12`/`.pfx`) keystore. It replaces
+//! the bundled `BatchPDFSignPortable.jar` (Java/PDFBox) used by the R package
+//! `signer`, removing the Java runtime dependency and the binary blob.
 //!
 //! ## What it does
-//! * [`sign_pdf_file`] / [`sign_pdf_bytes`]: append a signature field and an
-//!   `adbe.pkcs7.detached` CMS signature over the whole document.
+//! * [`sign_pdf_file`] / [`sign_pdf_bytes`]: append a signature field (optionally
+//!   with a visible appearance) and an `ETSI.CAdES.detached` CMS signature as an
+//!   **incremental update**, so any prior signature stays valid. Targets PAdES
+//!   B-B through B-LTA (RFC 3161 signature & document timestamps, `/DSS`).
 //! * [`verify_pdf_file`] / [`verify_pdf_bytes`]: re-extract the signed byte
-//!   range, validate the CMS signature cryptographically and report signer info.
+//!   range, validate the CMS signature cryptographically, report signer info,
+//!   and optionally validate the signer chain against a [`TrustStore`].
 //!
-//! ## Scope of the PoC
-//! * Single, invisible signature (no visual appearance stream yet).
-//! * Full-rewrite save (not an incremental update) — fine for a first
-//!   signature, revisit before multi-signature support.
-//! * CMS is produced via the system OpenSSL (`openssl` crate). A pure-Rust
-//!   RustCrypto backend is the path for a CRAN-friendly, vendored build.
+//! ## Notes
+//! * Keys: RSA (PKCS#1 v1.5), ECDSA (P-256/P-384), Ed25519.
+//! * 100% pure Rust (RustCrypto) — no OpenSSL, no Java, no system C libraries.
+//!   An optional `https` feature (ureq/rustls) enables TLS TSA/CRL/OCSP.
+//! * Incremental updates support both classic xref tables and xref streams.
 
 mod appearance;
 mod crypto;

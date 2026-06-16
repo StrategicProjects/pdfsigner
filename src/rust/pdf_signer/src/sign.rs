@@ -144,6 +144,15 @@ pub fn sign_pdf_bytes(
     password: &str,
     opts: &SignOptions,
 ) -> Result<Vec<u8>> {
+    // PAdES-B-T and above embed an RFC 3161 timestamp, which needs a TSA. Fail
+    // loudly here rather than silently downgrading the requested level to B-B.
+    if opts.pades_level >= PadesLevel::Bt && opts.tsa_url.is_none() {
+        return Err(Error::Crypto(format!(
+            "PAdES-{:?} requires a tsa_url",
+            opts.pades_level
+        )));
+    }
+
     // 1. Build an incremental update (keeps the original bytes verbatim, so any
     //    prior signature stays valid).
     let mut buf = build_incremental_update(pdf, opts)?;

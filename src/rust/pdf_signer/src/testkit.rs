@@ -78,6 +78,18 @@ pub fn sample_pdf() -> Vec<u8> {
     buf
 }
 
+/// A valid (unsigned) PDF that contains signature-looking syntax
+/// (`/ByteRange ... /Contents <...>`) inside a content stream. Structural
+/// verification must not mistake it for a signature.
+pub fn pdf_with_byterange_decoy() -> Vec<u8> {
+    let mut doc = Document::load_mem(&sample_pdf()).unwrap();
+    let decoy = b"/ByteRange [0 10 20 10] /Contents <30820000>".to_vec();
+    doc.add_object(Stream::new(dictionary! {}, decoy));
+    let mut buf = Vec::new();
+    doc.save_to(&mut buf).unwrap();
+    buf
+}
+
 /// Build a self-signed **ECDSA P-256** certificate and wrap it in a PKCS#12.
 pub fn self_signed_p256_p12(password: &str) -> Vec<u8> {
     let mut rng = rand::thread_rng();
@@ -609,4 +621,190 @@ pub fn ca_chain3_p12(password: &str) -> (Vec<u8>, Vec<u8>) {
     let mut ks = KeyStore::new();
     ks.add_entry("poc", KeyStoreEntry::PrivateKeyChain(chain));
     (ks.writer(password).write().expect("write p12"), root_der)
+}
+
+/// Build a **cross-signing** scenario for path-building tests.
+///
+/// One intermediate key with subject `CN=Cross Intermediate` is certified twice:
+/// once by an *untrusted* root A and once by a *trusted* root B. A leaf is signed
+/// by the intermediate key. Returns `(leaf_der, pool, trusted_root_b_der)` where
+/// `pool` is `[I_a, I_b]` — the untrusted-chaining cross-cert first, so a
+/// non-backtracking path builder commits to the dead end and fails.
+pub fn cross_signed_scenario() -> (Vec<u8>, Vec<Vec<u8>>, Vec<u8>) {
+    let mut rng = rand::thread_rng();
+    let validity = Validity::from_now(Duration::from_secs(365 * 24 * 3600)).unwrap();
+
+    // Two independent roots: A (untrusted) and B (trusted).
+    let make_root = |name: &str, rng: &mut rand::rngs::ThreadRng| {
+        let key = RsaPrivateKey::new(rng, 2048).unwrap();
+        let signing = SigningKey::<Sha256>::new(key);
+        let name = Name::from_str(name).unwrap();
+        let cert = CertificateBuilder::new(
+            Profile::Root,
+            SerialNumber::from(1u32),
+            validity,
+            name.clone(),
+            SubjectPublicKeyInfoOwned::from_key(signing.verifying_key()).unwrap(),
+            &signing,
+        )
+        .unwrap()
+        .build::<Signature>()
+        .unwrap();
+        (signing, name, cert.to_der().unwrap())
+    };
+    let (root_a_signing, root_a_name, _root_a_der) = make_root("CN=Cross Root A,C=BR", &mut rng);
+    let (root_b_signing, root_b_name, root_b_der) = make_root("CN=Cross Root B,C=BR", &mut rng);
+
+    // One intermediate key, certified by each root (same subject + key).
+    let inter_key = RsaPrivateKey::new(&mut rng, 2048).unwrap();
+    let inter_signing = SigningKey::<Sha256>::new(inter_key.clone());
+    let inter_name = Name::from_str("CN=Cross Intermediate,C=BR").unwrap();
+    let inter_spki = SubjectPublicKeyInfoOwned::from_key(inter_signing.verifying_key()).unwrap();
+
+    let make_inter = |issuer: Name, signer: &SigningKey<Sha256>, spki: &SubjectPublicKeyInfoOwned| {
+        CertificateBuilder::new(
+            Profile::SubCA {
+                issuer,
+                path_len_constraint: Some(0),
+            },
+            SerialNumber::from(2u32),
+            validity,
+            inter_name.clone(),
+            spki.clone(),
+            signer,
+        )
+        .unwrap()
+        .build::<Signature>()
+        .unwrap()
+        .to_der()
+        .unwrap()
+    };
+    let i_a = make_inter(root_a_name, &root_a_signing, &inter_spki);
+    let i_b = make_inter(root_b_name, &root_b_signing, &inter_spki);
+
+    // Leaf signed by the intermediate key.
+    let leaf_key = RsaPrivateKey::new(&mut rng, 2048).unwrap();
+    let leaf_signing = SigningKey::<Sha256>::new(leaf_key);
+    let leaf_der = CertificateBuilder::new(
+        leaf_profile(inter_name),
+        SerialNumber::from(3u32),
+        validity,
+        Name::from_str("CN=Cross Leaf,C=BR").unwrap(),
+        SubjectPublicKeyInfoOwned::from_key(leaf_signing.verifying_key()).unwrap(),
+        &inter_signing,
+    )
+    .unwrap()
+    .build::<Signature>()
+    .unwrap()
+    .to_der()
+    .unwrap();
+
+    (leaf_der, vec![i_a, i_b], root_b_der)
+}
+
+/// Material for exercising authenticated CRL revocation checks.
+pub struct RevocationScenario {
+    /// Leaf certificate (serial 2), signed by `root`.
+    pub leaf_der: Vec<u8>,
+    /// Trusted root CA (serial 1).
+    pub root_der: Vec<u8>,
+    /// A current CRL, signed by the root, listing the leaf as revoked.
+    pub good_crl: Vec<u8>,
+    /// Same contents, but signed by a different key (signature must not verify).
+    pub wrong_key_crl: Vec<u8>,
+    /// Signed by the root and listing the leaf, but already past `nextUpdate`.
+    pub expired_crl: Vec<u8>,
+}
+
+/// Build a root CA, a leaf, and three CRLs (valid / bad-signature / stale) so
+/// tests can assert that only an authenticated, current CRL revokes the leaf.
+pub fn revocation_scenario() -> RevocationScenario {
+    use der::asn1::{BitString, GeneralizedTime};
+    use der::DateTime;
+    use signature::{SignatureEncoding, Signer};
+    use std::time::{SystemTime, UNIX_EPOCH};
+    use x509_cert::certificate::Version;
+    use x509_cert::crl::{CertificateList, RevokedCert, TbsCertList};
+    use x509_cert::spki::AlgorithmIdentifierOwned;
+
+    let mut rng = rand::thread_rng();
+    let validity = Validity::from_now(Duration::from_secs(365 * 24 * 3600)).unwrap();
+
+    let root_key = RsaPrivateKey::new(&mut rng, 2048).unwrap();
+    let root_signing = SigningKey::<Sha256>::new(root_key);
+    let root_name = Name::from_str("CN=Revocation Root,C=BR").unwrap();
+    let root_cert = CertificateBuilder::new(
+        Profile::Root,
+        SerialNumber::from(1u32),
+        validity,
+        root_name.clone(),
+        SubjectPublicKeyInfoOwned::from_key(root_signing.verifying_key()).unwrap(),
+        &root_signing,
+    )
+    .unwrap()
+    .build::<Signature>()
+    .unwrap();
+    let root_der = root_cert.to_der().unwrap();
+
+    let leaf_key = RsaPrivateKey::new(&mut rng, 2048).unwrap();
+    let leaf_signing = SigningKey::<Sha256>::new(leaf_key);
+    let leaf_serial = SerialNumber::from(2u32);
+    let leaf_cert = CertificateBuilder::new(
+        leaf_profile(root_name.clone()),
+        leaf_serial.clone(),
+        validity,
+        Name::from_str("CN=Revocation Leaf,C=BR").unwrap(),
+        SubjectPublicKeyInfoOwned::from_key(leaf_signing.verifying_key()).unwrap(),
+        &root_signing,
+    )
+    .unwrap()
+    .build::<Signature>()
+    .unwrap();
+    let leaf_der = leaf_cert.to_der().unwrap();
+
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+    let time = |secs: u64| {
+        x509_cert::time::Time::GeneralTime(GeneralizedTime::from_date_time(
+            DateTime::from_unix_duration(Duration::from_secs(secs)).unwrap(),
+        ))
+    };
+    let rsa_sha256 = || AlgorithmIdentifierOwned {
+        oid: const_oid::db::rfc5912::SHA_256_WITH_RSA_ENCRYPTION,
+        parameters: None,
+    };
+
+    // Build a CRL revoking the leaf, signed by `signer`, valid in [this, next].
+    let build_crl = |signer: &SigningKey<Sha256>, this: u64, next: u64| -> Vec<u8> {
+        let tbs = TbsCertList {
+            version: Version::V2,
+            signature: rsa_sha256(),
+            issuer: root_name.clone(),
+            this_update: time(this),
+            next_update: Some(time(next)),
+            revoked_certificates: Some(vec![RevokedCert {
+                serial_number: leaf_serial.clone(),
+                revocation_date: time(this),
+                crl_entry_extensions: None,
+            }]),
+            crl_extensions: None,
+        };
+        let tbs_der = tbs.to_der().unwrap();
+        let sig = signer.sign(&tbs_der);
+        let crl = CertificateList {
+            tbs_cert_list: tbs,
+            signature_algorithm: rsa_sha256(),
+            signature: BitString::from_bytes(&sig.to_vec()).unwrap(),
+        };
+        crl.to_der().unwrap()
+    };
+
+    let wrong_key = SigningKey::<Sha256>::new(RsaPrivateKey::new(&mut rng, 2048).unwrap());
+
+    RevocationScenario {
+        leaf_der,
+        root_der,
+        good_crl: build_crl(&root_signing, now - 3600, now + 3600),
+        wrong_key_crl: build_crl(&wrong_key, now - 3600, now + 3600),
+        expired_crl: build_crl(&root_signing, now - 7200, now - 3600),
+    }
 }

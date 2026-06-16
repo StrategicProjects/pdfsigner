@@ -3,7 +3,7 @@
 # Keep in sync with that repo until it is published to crates.io.
 [package]
 name = "pdf_signer"
-version = "0.1.7"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.74"
 description = "Sign PDF documents with a PKCS#12 keystore and verify their signatures."
