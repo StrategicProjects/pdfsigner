@@ -86,9 +86,19 @@ pub(crate) fn request_timestamp(tsa_url: &str, signature: &[u8]) -> Result<Conte
             parsed.status.status
         )));
     }
-    parsed
+    let token = parsed
         .token
-        .ok_or_else(|| Error::Crypto("TSA response carried no timestamp token".into()))
+        .ok_or_else(|| Error::Crypto("TSA response carried no timestamp token".into()))?;
+
+    // Confirm the TSA stamped *our* imprint and not something else.
+    let token_der = token.to_der().map_err(tsa)?;
+    let stamped = crate::crypto::tst_message_imprint(&token_der)?;
+    if stamped.as_slice() != imprint.as_slice() {
+        return Err(Error::Crypto(
+            "TSA response imprint does not match the request".into(),
+        ));
+    }
+    Ok(token)
 }
 
 /// POST `body` to `url`. Returns the response body.

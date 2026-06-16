@@ -2,10 +2,10 @@
 //! policy mapping, and the explicit-policy / policy-mapping / inhibit-anyPolicy
 //! counters.
 //!
-//! ⚠️ This is a from-scratch implementation of the RFC 5280 §6.1.2–6.1.6 policy
-//! algorithm. It is exercised by the crate's own scenario tests but has **not**
-//! been validated against the NIST PKITS suite — review before relying on it
-//! for high-stakes policy decisions.
+//! This is a from-scratch implementation of the RFC 5280 §6.1.2–6.1.6 policy
+//! algorithm. It is exercised by the crate's own scenario tests and validated
+//! against the NIST PKITS suite (certificate-policy section, see
+//! `tests/pkits.rs`).
 
 use std::collections::BTreeSet;
 

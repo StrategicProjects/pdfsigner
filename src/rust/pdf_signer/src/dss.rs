@@ -53,7 +53,7 @@ pub(crate) fn collect_validation_material(signature_cms: &[u8]) -> Result<Valida
     let mut urls: Vec<String> = Vec::new();
     for der in &certs {
         if let Ok(cert) = Certificate::from_der(der) {
-            for url in crl_http_urls(&cert) {
+            for url in crl_urls(&cert) {
                 if !urls.contains(&url) {
                     urls.push(url);
                 }
@@ -117,14 +117,20 @@ fn fetch_ocsp(cert: &Certificate, pool: &[Certificate]) -> Option<Vec<u8>> {
     }
 }
 
-/// The HTTP OCSP responder URL from a certificate's Authority Information Access.
+/// True if we can fetch `url`: plain `http://` always, `https://` only when the
+/// `https` feature (and thus a TLS stack) is compiled in.
+fn fetchable_url(url: &str) -> bool {
+    url.starts_with("http://") || (cfg!(feature = "https") && url.starts_with("https://"))
+}
+
+/// The OCSP responder URL from a certificate's Authority Information Access.
 fn ocsp_url(cert: &Certificate) -> Option<String> {
     let (_, aia) = cert.tbs_certificate.get::<AuthorityInfoAccessSyntax>().ok()??;
     for desc in aia.0.iter() {
         if desc.access_method == ID_AD_OCSP {
             if let GeneralName::UniformResourceIdentifier(uri) = &desc.access_location {
                 let s = uri.as_str().to_string();
-                if s.starts_with("http://") {
+                if fetchable_url(&s) {
                     return Some(s);
                 }
             }
@@ -170,7 +176,7 @@ fn extract_timestamp_token(cms_der: &[u8]) -> Result<Option<Vec<u8>>> {
     Ok(None)
 }
 
-fn crl_http_urls(cert: &Certificate) -> Vec<String> {
+fn crl_urls(cert: &Certificate) -> Vec<String> {
     let mut urls = Vec::new();
     if let Ok(Some((_, cdp))) = cert.tbs_certificate.get::<CrlDistributionPoints>() {
         for dp in cdp.0.iter() {
@@ -178,7 +184,7 @@ fn crl_http_urls(cert: &Certificate) -> Vec<String> {
                 for name in names {
                     if let GeneralName::UniformResourceIdentifier(uri) = name {
                         let s = uri.as_str().to_string();
-                        if s.starts_with("http://") {
+                        if fetchable_url(&s) {
                             urls.push(s);
                         }
                     }
@@ -302,4 +308,25 @@ fn extract_dss_streams(pdf: &[u8], key: &[u8]) -> Vec<Vec<u8>> {
 
 fn map<E: std::fmt::Display>(e: E) -> Error {
     Error::Crypto(e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::fetchable_url;
+
+    #[test]
+    fn plain_http_is_always_fetchable() {
+        assert!(fetchable_url("http://ca.example/crl.der"));
+        assert!(!fetchable_url("ldap://ca.example/cn"));
+        assert!(!fetchable_url("ftp://ca.example/crl.der"));
+    }
+
+    #[test]
+    fn https_follows_the_feature_flag() {
+        // HTTPS is only fetchable when a TLS stack is compiled in.
+        assert_eq!(
+            fetchable_url("https://ca.example/crl.der"),
+            cfg!(feature = "https")
+        );
+    }
 }
