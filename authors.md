@@ -18,14 +18,14 @@ Source:
 [`DESCRIPTION`](https://github.com/StrategicProjects/pdfsigner/blob/main/DESCRIPTION)
 
 Leite A, Vasconcelos H, Bezerra D (2026). *pdfsigner: Digitally Sign and
-Verify PDF Documents*. R package version 0.2.2,
+Verify PDF Documents*. R package version 0.2.3,
 <https://github.com/StrategicProjects/pdfsigner>.
 
     @Manual{,
       title = {pdfsigner: Digitally Sign and Verify PDF Documents},
       author = {Andre Leite and Hugo Vasconcelos and Diogo Bezerra},
       year = {2026},
-      note = {R package version 0.2.2},
+      note = {R package version 0.2.3},
       url = {https://github.com/StrategicProjects/pdfsigner},
     }
 
