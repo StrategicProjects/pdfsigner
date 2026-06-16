@@ -53,3 +53,9 @@ src/Makevars
 src/Makevars.win
 
 .DS_Store
+
+# AI assistant artifacts
+CLAUDE.md
+AGENTS.md
+memory/
+PLAN.md
