@@ -1,10 +1,23 @@
 ## Submission notes
 
-This is the first CRAN submission of `pdfsigner`.
+This is a resubmission of `pdfsigner` (0.2.4) addressing the issue reported by
+Prof. Brian Ripley on the M1mac additional check for 0.2.2.
 
 `pdfsigner` digitally signs and verifies PDF documents. All cryptography and PDF
 manipulation are performed by a bundled, pure-Rust backend (the `pdf_signer`
 crate); there is no Java runtime, OpenSSL, or external command-line dependency.
+
+### Fix for the M1mac linker WARNING (0.2.2)
+
+The M1mac check of 0.2.2 reported "object file ... was built for newer 'macOS'
+version (26.5) than being linked (26.0)" for the C/assembly object files of the
+bundled `ring` crate. The cause is that, when `MACOSX_DEPLOYMENT_TARGET` is
+unset, the macOS deployment target chosen by the `cc` crate (the host SDK
+version) differs from the one used by `rustc` and by R's link step. We now
+export an explicit `MACOSX_DEPLOYMENT_TARGET` for the `cargo build` step on
+macOS (in `tools/config.R` / `src/Makevars.in`), using R's own value when set
+and otherwise the per-architecture rustc default minimum, so all objects share
+a single deployment target <= R's link target and the warning no longer occurs.
 
 ### Rust / SystemRequirements
 
@@ -34,13 +47,14 @@ copyright holders in `Authors@R` and enumerated in `inst/AUTHORS`.
 
 ## R CMD check results
 
-On CRAN's build machines we expect 0 errors | 0 warnings | NOTEs for:
+We expect 0 errors | 0 warnings, including on the M1mac additional check that
+previously warned (the deployment-target fix above eliminates that WARNING).
 
-* New submission.
+A remaining NOTE is expected on some platforms:
+
 * Installed size (~12 MB) and source tarball size (~18 MB), both driven by the
   vendored Rust sources and the compiled static library, as explained above.
 
-Locally we additionally see two environment-specific messages that will not
-appear on CRAN's infrastructure: a linker warning about an SDK version mismatch
-(our toolchain's macOS SDK is newer than the one R was built against) and a
-"HTML Tidy not recent enough" NOTE (our local `tidy` is outdated).
+Locally we additionally see a "HTML Tidy not recent enough" NOTE that is
+environment-specific (our local `tidy` is outdated) and will not appear on
+CRAN's infrastructure.

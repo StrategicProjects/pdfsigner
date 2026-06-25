@@ -1,7 +1,7 @@
 Package: pdfsigner
 Title: Digitally Sign and Verify PDF Documents
 Type: Package
-Version: 0.2.3
+Version: 0.2.4
 Authors@R: c(
               person("Andre", "Leite",
                 email = "leite@castlab.org",
