@@ -70,6 +70,25 @@ cfg <- if (is_debug) "debug" else "release"
   ""
 )
 
+# On macOS, pin the deployment target for the cargo build so that the C/asm
+# objects compiled by the `cc` crate (in the bundled `ring`) use the same
+# minimum-macOS version as `rustc` and as R's final link step. Without this,
+# `cc` defaults to the host SDK version (e.g. 26.5) while R links at a lower
+# target (e.g. 26.0), producing "object file was built for newer 'macOS'
+# version than being linked" linker warnings (CRAN M1mac check). The warning is
+# one-directional, so a value <= R's link target is always safe; we prefer R's
+# own MACOSX_DEPLOYMENT_TARGET when set, else fall back to rustc's per-arch
+# default minimum.
+.macos_deployment_target <- ""
+if (identical(Sys.info()[["sysname"]], "Darwin")) {
+  dt <- Sys.getenv("MACOSX_DEPLOYMENT_TARGET")
+  if (!nzchar(dt)) {
+    arch <- R.version$arch
+    dt <- if (grepl("aarch64|arm64", arch)) "11.0" else "10.13"
+  }
+  .macos_deployment_target <- paste0("MACOSX_DEPLOYMENT_TARGET=", dt, " ")
+}
+
 # read in the Makevars.in file checking
 is_windows <- .Platform[["OS.type"]] == "windows"
 
@@ -102,7 +121,8 @@ new_txt <- gsub("@CRAN_FLAGS@", .cran_flags, mv_txt) |>
   gsub("@CLEAN_TARGET@", .clean_targets, x = _) |>
   gsub("@LIBDIR@", .libdir, x = _) |>
   gsub("@TARGET@", .target, x = _) |>
-  gsub("@PANIC_EXPORTS@", .panic_exports, x = _)
+  gsub("@PANIC_EXPORTS@", .panic_exports, x = _) |>
+  gsub("@MACOS_DEPLOYMENT_TARGET@", .macos_deployment_target, x = _)
 
 message("Writing `", mv_ofp, "`.")
 con <- file(mv_ofp, open = "wb")
