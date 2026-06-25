@@ -42,16 +42,20 @@ copyright holders in `Authors@R` and enumerated in `inst/AUTHORS`.
 
 ## Test environments
 
-* local macOS, R release
-* (please add the win-builder / R-hub results obtained for the actual submission)
+* local macOS (R 4.6.0), R CMD check --as-cran
+* win-builder, R-devel (R Under development, 2026-06-24 r90190 ucrt): OK, 1 NOTE
+  (see below)
 
 ## R CMD check results
 
 We expect 0 errors | 0 warnings, including on the M1mac additional check that
 previously warned (the deployment-target fix above eliminates that WARNING).
 
-A remaining NOTE is expected on some platforms:
+The following NOTEs are expected:
 
+* "Days since last update: N". This release is a quick resubmission requested
+  by the CRAN team (Prof. Ripley) to address the M1mac WARNING in 0.2.2; the
+  only changes are the macOS deployment-target build fix described above.
 * Installed size (~12 MB) and source tarball size (~18 MB), both driven by the
   vendored Rust sources and the compiled static library, as explained above.
 
