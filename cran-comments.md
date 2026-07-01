@@ -67,25 +67,32 @@ copyright holders in `Authors@R` and enumerated in `inst/AUTHORS`.
 * local macOS (R 4.6.0, rustc 1.95.0), R CMD check --as-cran, plus an offline
   build from the regenerated `src/rust/vendor.tar.xz` (the exact mechanism
   CRAN's build machines use)
-* win-builder, R-devel: to be re-run for this submission
+* win-builder, R-devel (R Under development, 2026-06-29 r90199 ucrt): OK,
+  1 NOTE (see below)
 
 ## R CMD check results
 
-We expect 0 errors | 0 warnings. In particular, `cargo build --offline` against
-the regenerated vendor tarball now succeeds with rustc 1.83.0+ (verified
-locally by checking each pinned crate's declared `rust-version`), which covers
-Prof. Ripley's check machine (rustc 1.86.0).
+0 errors | 0 warnings | 1 NOTE, on both local macOS and win-builder R-devel.
+In particular, `cargo build --offline` against the regenerated vendor tarball
+now succeeds with rustc 1.83.0+ (verified locally by checking each pinned
+crate's declared `rust-version`), which covers Prof. Ripley's check machine
+(rustc 1.86.0), and win-builder's `checking Rust compilation` / `checking
+compiled code` both report OK.
 
-The following NOTEs are expected:
+The NOTE is expected and has two parts:
 
-* "Days since last update: N". This release is a quick resubmission requested
+* "Days since last update: 5". This release is a quick resubmission requested
   by the CRAN team (Prof. Ripley) to address the rustc/MSRV installation ERROR
   described above; the only functional changes are the `time` crate downgrade
   and vendoring `pdf_signer` from crates.io instead of a bundled path copy
   (same version, no behavior change).
-* Installed size (~12 MB) and source tarball size (~18 MB), both driven by the
-  vendored Rust sources and the compiled static library, as explained above.
+* "Found the following (possibly) invalid URLs: https://www.gnu.org/licenses/gpl-3.0
+  ... Timeout was reached". This is win-builder's check server failing to
+  reach gnu.org, not a broken link; the URL is the standard GPL-3.0 licence
+  text and resolves fine outside that network.
 
-Locally we additionally see a "HTML Tidy not recent enough" NOTE that is
-environment-specific (our local `tidy` is outdated) and will not appear on
-CRAN's infrastructure.
+Locally we additionally see "Installed size" (~12 MB) and source tarball size
+(~18 MB) NOTEs, both driven by the vendored Rust sources and the compiled
+static library as explained above, plus a "HTML Tidy not recent enough" NOTE
+that is environment-specific (our local `tidy` is outdated) and did not appear
+on win-builder or should not appear on CRAN's own infrastructure.
