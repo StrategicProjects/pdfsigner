@@ -1,13 +1,35 @@
 ## Submission notes
 
-This is a resubmission of `pdfsigner` (0.2.4) addressing the issue reported by
-Prof. Brian Ripley on the M1mac additional check for 0.2.2.
+This is a resubmission of `pdfsigner` (0.2.5) addressing the installation
+ERROR reported by Prof. Brian Ripley on 2026-06-26 via the "Additional issues"
+/ donttest check (rustc version too old for vendored dependencies).
 
 `pdfsigner` digitally signs and verifies PDF documents. All cryptography and PDF
-manipulation are performed by a bundled, pure-Rust backend (the `pdf_signer`
-crate); there is no Java runtime, OpenSSL, or external command-line dependency.
+manipulation are performed by a pure-Rust backend (the `pdf_signer` crate,
+published on crates.io and vendored for the offline CRAN build); there is no
+Java runtime, OpenSSL, or external command-line dependency.
 
-### Fix for the M1mac linker WARNING (0.2.2)
+### Fix for the rustc/MSRV installation ERROR (0.2.4)
+
+Prof. Ripley's check machine (rustc 1.86.0) failed to install 0.2.4 with:
+
+```
+error: rustc 1.86.0 is not supported by the following packages:
+   time@0.3.49 requires rustc 1.88.0
+   time-core@0.1.9 requires rustc 1.88.0
+   time-macros@0.2.29 requires rustc 1.88.0
+```
+
+`time`/`time-core`/`time-macros` are transitive dependencies (via `lopdf` and
+`x509-parser`/`asn1-rs`) that are not pinned in our own `Cargo.toml` files, so
+`cargo vendor` picked up their latest 0.3.x patch releases, which had quietly
+raised the crates' MSRV from rustc 1.83.0 to 1.88.0 (12 months old at
+submission time, i.e. newer than the toolchain-currency CRAN expects). We now
+pin `time = "=0.3.45"` (with the matching `time-core 0.1.7` /
+`time-macros 0.2.25`, MSRV 1.83.0) in `src/rust/Cargo.lock` before vendoring,
+so the vendored build only requires a rustc that is well over two years old.
+
+### Fix for the M1mac linker WARNING (0.2.2, still in effect)
 
 The M1mac check of 0.2.2 reported "object file ... was built for newer 'macOS'
 version (26.5) than being linked (26.0)" for the C/assembly object files of the
@@ -42,20 +64,25 @@ copyright holders in `Authors@R` and enumerated in `inst/AUTHORS`.
 
 ## Test environments
 
-* local macOS (R 4.6.0), R CMD check --as-cran
-* win-builder, R-devel (R Under development, 2026-06-24 r90190 ucrt): OK, 1 NOTE
-  (see below)
+* local macOS (R 4.6.0, rustc 1.95.0), R CMD check --as-cran, plus an offline
+  build from the regenerated `src/rust/vendor.tar.xz` (the exact mechanism
+  CRAN's build machines use)
+* win-builder, R-devel: to be re-run for this submission
 
 ## R CMD check results
 
-We expect 0 errors | 0 warnings, including on the M1mac additional check that
-previously warned (the deployment-target fix above eliminates that WARNING).
+We expect 0 errors | 0 warnings. In particular, `cargo build --offline` against
+the regenerated vendor tarball now succeeds with rustc 1.83.0+ (verified
+locally by checking each pinned crate's declared `rust-version`), which covers
+Prof. Ripley's check machine (rustc 1.86.0).
 
 The following NOTEs are expected:
 
 * "Days since last update: N". This release is a quick resubmission requested
-  by the CRAN team (Prof. Ripley) to address the M1mac WARNING in 0.2.2; the
-  only changes are the macOS deployment-target build fix described above.
+  by the CRAN team (Prof. Ripley) to address the rustc/MSRV installation ERROR
+  described above; the only functional changes are the `time` crate downgrade
+  and vendoring `pdf_signer` from crates.io instead of a bundled path copy
+  (same version, no behavior change).
 * Installed size (~12 MB) and source tarball size (~18 MB), both driven by the
   vendored Rust sources and the compiled static library, as explained above.
 
