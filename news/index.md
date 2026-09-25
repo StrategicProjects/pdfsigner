@@ -2,7 +2,7 @@
 
 ## pdfsigner 0.3.0
 
-- Synced the pure-Rust backend to `pdf_signer` engine v0.3.1, which
+- Synced the pure-Rust backend to `pdf_signer` engine v0.3.2, which
   closes a multi-agent security review. Verification now judges the
   **whole document**:
   [`verify_pdf_signature()`](https://strategicprojects.github.io/pdfsigner/reference/verify_pdf_signature.md)
@@ -24,6 +24,19 @@
   to `/M` by default. Encrypted PDFs (even with an empty user password)
   and documents certified with DocMDP `P=1` are refused with a clear
   error instead of producing a corrupted file.
+- Build: the vendored Rust dependency set now resolves for **rustc
+  1.81** (September 2024), in line with CRAN’s two-year toolchain
+  policy. `pdf_signer` declares `rust-version = 1.81` and depends on
+  `p12-keystore` 0.1.5 (0.2.x is edition 2024 / rustc 1.85+, and 0.2.1
+  needs rustc 1.88 — the cause of the 0.2.5 installation failure on
+  CRAN’s check machine); `time` is 0.3.44, `ureq` 3.2.1, `getrandom`
+  0.3.1 (its later WebAssembly-only dependencies are 2024 edition, and
+  cargo 1.81 refuses to parse any vendored 2024-edition manifest even
+  for targets it never builds). The lockfile is resolved with cargo’s
+  MSRV-aware resolver
+  (`CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS=fallback`) before
+  vendoring, and the built tarball is installed offline with rustc
+  1.81.0 as part of the release checks.
 
 ## pdfsigner 0.2.5
 
