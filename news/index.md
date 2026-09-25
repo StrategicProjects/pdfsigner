@@ -1,5 +1,30 @@
 # Changelog
 
+## pdfsigner 0.3.0
+
+- Synced the pure-Rust backend to `pdf_signer` engine v0.3.1, which
+  closes a multi-agent security review. Verification now judges the
+  **whole document**:
+  [`verify_pdf_signature()`](https://strategicprojects.github.io/pdfsigner/reference/verify_pdf_signature.md)
+  returns the attributes `document_intact`, `all_valid` and
+  `all_trusted`; a PDF whose content was changed by an unsigned
+  incremental update after signing is no longer reported as valid
+  overall (each signature still reports `valid` over its own byte
+  range). Document timestamps get their own `chain_trusted`; timestamp
+  authorities must carry the RFC 3161 `id-kp-timeStamping` purpose
+  before their time is trusted; revocation dated at or before the
+  signing time is honoured even from later CRL/OCSP evidence;
+  certificate extensions are processed per RFC 5280 §6.1.3.
+- New per-signature fields `is_timestamp` and `trusted_time`.
+- Signing: `reason`, `name`, `location` and `contact_info` with
+  non-ASCII text (e.g. “Aprovação”) are now written as UTF-16 text
+  strings and render correctly in every viewer; the previous trailer’s
+  `/Info` (Title, Author) is preserved; a second B-LT/B-LTA signature
+  merges into the existing `/DSS`; the claimed signing time is written
+  to `/M` by default. Encrypted PDFs (even with an empty user password)
+  and documents certified with DocMDP `P=1` are refused with a clear
+  error instead of producing a corrupted file.
+
 ## pdfsigner 0.2.5
 
 CRAN release: 2026-07-02
