@@ -2,6 +2,8 @@
 
 [![CRAN
 status](https://img.shields.io/cran/v/pdfsigner)](https://CRAN.R-project.org/package=pdfsigner)
+[![dev
+version](https://img.shields.io/github/r-package/v/StrategicProjects/pdfsigner?label=dev%20version&color=orange)](https://github.com/StrategicProjects/pdfsigner)
 [![CRAN
 downloads](https://cranlogs.r-pkg.org/badges/grand-total/pdfsigner)](https://CRAN.R-project.org/package=pdfsigner)
 [![License: GPL
