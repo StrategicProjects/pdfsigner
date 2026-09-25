@@ -11,24 +11,39 @@ verify_pdf_signature(pdf_file, roots = NULL)
 
 \item{roots}{Optional path to a PEM file of trusted root certificates (e.g.
 the ICP-Brasil AC Raiz set). When supplied, each signer certificate chain
-is validated against these roots and reported in \code{chain_trusted}.}
+(and each timestamp authority's) is validated against these roots and
+reported in \code{chain_trusted}; for timestamped signatures the chain is judged
+at the timestamp's \code{genTime}, exposed as \code{trusted_time}.}
 }
 \value{
-A list with one entry per signature. Each entry is a named list with
-\code{valid} (logical), \code{signer} (subject DN), \code{chain_trusted} (logical or \code{NA}
-when no \code{roots} given), \code{covers_whole_document} (logical), \code{signed_len}
-(bytes), \code{byte_range} (numeric length-4) and \code{detail}. A length-zero list
-means no signatures were found.
+A list with one entry per signature or document timestamp, in file
+order. Each entry is a named list with \code{valid} (logical), \code{is_timestamp}
+(logical, \code{TRUE} for a \verb{/DocTimeStamp}), \code{signer} (subject DN),
+\code{chain_trusted} (logical or \code{NA} when no \code{roots} given),
+\code{covers_whole_document} (logical), \code{trusted_time} (seconds since the Unix
+epoch of the trusted timestamp used, or \code{NA}), \code{signed_len} (bytes),
+\code{byte_range} (numeric length-4) and \code{detail}. The list carries three
+logical attributes with the document-level verdict: \code{document_intact},
+\code{all_valid} (every entry valid and the document intact) and \code{all_trusted}
+(\code{all_valid} and every entry chains to one of \code{roots}; always \code{FALSE}
+without \code{roots}). A length-zero list means no signatures were found.
 }
 \description{
-Cryptographically verifies every signature in \code{pdf_file} using the bundled
-Rust backend. Each signature is checked by re-deriving its signed byte range,
-confirming the \code{messageDigest} against \code{SHA-256} of the content and
-validating the signer's RSA signature over the signed attributes.
+Cryptographically verifies every signature and document timestamp in
+\code{pdf_file} using the bundled Rust backend. Each signature is checked by
+re-deriving its signed byte range, validating the CMS profile
+(\code{content-type}, \code{message-digest}, ESS certificate binding) and the signer's
+signature over the signed attributes. The document is also judged \strong{as a
+whole}: it is only intact when the last valid signature or document
+timestamp covers the entire file, or when everything appended after it is a
+PAdES \verb{/DSS} (long-term validation material). Content changed after signing
+therefore fails \code{document_intact} even though the original signature still
+verifies over its own bytes.
 }
 \examples{
 \dontrun{
 result <- verify_pdf_signature("signed.pdf", roots = "icp-brasil-roots.pem")
 vapply(result, function(s) s$valid, logical(1))
+attr(result, "all_trusted")   # the one-line verdict
 }
 }

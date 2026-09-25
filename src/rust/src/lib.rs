@@ -107,8 +107,11 @@ fn rust_sign_pdf(
 }
 
 /// Verify all signatures in `pdf_file`. Returns a list with one named list per
-/// signature (`valid`, `signer`, `covers_whole_document`, `signed_len`,
-/// `byte_range`, `detail`). An empty list means no signatures were found.
+/// signature or document timestamp (`valid`, `is_timestamp`, `signer`,
+/// `chain_trusted`, `covers_whole_document`, `trusted_time`, `signed_len`,
+/// `byte_range`, `detail`), carrying the document-level verdict as attributes
+/// `document_intact`, `all_valid` and `all_trusted`. An empty list means no
+/// signatures were found.
 ///
 /// Internal: the user-facing wrapper is [`verify_pdf_signature()`].
 /// @noRd
@@ -130,11 +133,21 @@ fn rust_verify_pdf(
         .iter()
         .map(|s| {
             let byte_range: Vec<f64> = s.byte_range.iter().map(|v| *v as f64).collect();
+            // The authenticated validation time (a trusted RFC 3161 genTime),
+            // as seconds since the Unix epoch, or NA when the chain was judged
+            // at the current time.
+            let trusted_time: Option<f64> = s.trusted_time.and_then(|t| {
+                t.duration_since(std::time::UNIX_EPOCH)
+                    .ok()
+                    .map(|d| d.as_secs_f64())
+            });
             list!(
                 valid = s.valid,
+                is_timestamp = s.is_timestamp,
                 signer = s.signer.clone().unwrap_or_default(),
                 chain_trusted = s.chain_trusted,
                 covers_whole_document = s.covers_whole_document,
+                trusted_time = trusted_time,
                 signed_len = s.signed_len as f64,
                 byte_range = byte_range,
                 detail = s.detail.clone()
@@ -143,7 +156,11 @@ fn rust_verify_pdf(
         })
         .collect();
 
-    Ok(List::from_values(items).into_robj())
+    let mut out = List::from_values(items).into_robj();
+    out.set_attrib("document_intact", report.document_intact)?;
+    out.set_attrib("all_valid", report.all_valid())?;
+    out.set_attrib("all_trusted", report.all_trusted())?;
+    Ok(out)
 }
 
 extendr_module! {
