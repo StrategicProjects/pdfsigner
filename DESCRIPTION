@@ -39,7 +39,7 @@ Copyright: The pdfsigner package and its bundled 'pdf_signer' Rust backend are
 Encoding: UTF-8
 URL: https://github.com/StrategicProjects/pdfsigner
 BugReports: https://github.com/StrategicProjects/pdfsigner/issues
-SystemRequirements: Cargo (Rust's package manager), rustc
+SystemRequirements: Cargo (Rust's package manager), rustc (>= 1.81)
 Config/rextendr/version: 0.5.0
 Roxygen: list(markdown = TRUE)
 Config/roxygen2/version: 8.0.0
