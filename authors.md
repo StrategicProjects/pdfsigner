@@ -8,6 +8,11 @@
 
 - **Diogo Bezerra**. Author.
 
+- **Marcos Wasiliew**. Author. [](https://orcid.org/0009-0004-4694-3159)
+
+- **Júlia Nascimento Barreto**. Author.
+  [](https://orcid.org/0009-0004-2851-7770)
+
 - **Authors of the vendored Rust crates**. Contributor, copyright
   holder.  
   see inst/AUTHORS for the bundled crates and their licences
@@ -17,13 +22,13 @@
 Source:
 [`DESCRIPTION`](https://github.com/StrategicProjects/pdfsigner/blob/main/DESCRIPTION)
 
-Leite A, Vasconcelos H, Bezerra D (2026). *pdfsigner: Digitally Sign and
-Verify PDF Documents*. R package version 0.3.0,
-<https://github.com/StrategicProjects/pdfsigner>.
+Leite A, Vasconcelos H, Bezerra D, Wasiliew M, Nascimento Barreto J
+(2026). *pdfsigner: Digitally Sign and Verify PDF Documents*. R package
+version 0.3.0, <https://github.com/StrategicProjects/pdfsigner>.
 
     @Manual{,
       title = {pdfsigner: Digitally Sign and Verify PDF Documents},
-      author = {Andre Leite and Hugo Vasconcelos and Diogo Bezerra},
+      author = {Andre Leite and Hugo Vasconcelos and Diogo Bezerra and Marcos Wasiliew and Júlia {Nascimento Barreto}},
       year = {2026},
       note = {R package version 0.3.0},
       url = {https://github.com/StrategicProjects/pdfsigner},

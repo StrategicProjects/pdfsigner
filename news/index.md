@@ -2,6 +2,8 @@
 
 ## pdfsigner 0.3.0
 
+CRAN release: 2026-09-25
+
 - Synced the pure-Rust backend to `pdf_signer` engine v0.3.2, which
   closes a multi-agent security review. Verification now judges the
   **whole document**:
