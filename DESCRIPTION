@@ -12,6 +12,10 @@ Authors@R: c(
               person("Diogo", "Bezerra",
                 email = "diogo.bezerra@ufpe.br",
                 role = "aut"),
+              person("Marcos", "Wasiliew", email = "marcos.wasiliew@gmail.com", role = "aut",
+                     comment = c(ORCID = "0009-0004-4694-3159")),
+              person("Júlia", "Nascimento Barreto", email = "juliabarreto@gd.seplag.pe.gov.br", role = "aut",
+                     comment = c(ORCID = "0009-0004-2851-7770")),
               person("Authors of the vendored Rust crates",
                 role = c("ctb", "cph"),
                 comment = "see inst/AUTHORS for the bundled crates and their licences")
