@@ -3,10 +3,12 @@
 ## Authors
 
 - **André Leite**. Author, maintainer.
+  [](https://orcid.org/0000-0002-4718-9766)
 
 - **Hugo Vasconcelos**. Author.
+  [](https://orcid.org/0000-0001-6249-0920)
 
-- **Diogo Bezerra**. Author.
+- **Diogo Bezerra**. Author. [](https://orcid.org/0000-0002-1216-8674)
 
 - **Marcos Wasiliew**. Author. [](https://orcid.org/0009-0004-4694-3159)
 
