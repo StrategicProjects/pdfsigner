@@ -15,11 +15,11 @@ Useful links:
 
 ## Author
 
-**Maintainer**: Andre Leite <leite@castlab.org>
+**Maintainer**: André Leite <leite@castlab.org>
 
 Authors:
 
-- Andre Leite <leite@castlab.org>
+- André Leite <leite@castlab.org>
 
 - Hugo Vasconcelos <hugo.vasconcelos@ufpe.br>
 

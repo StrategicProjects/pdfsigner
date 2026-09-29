@@ -2,7 +2,7 @@
 
 ## Authors
 
-- **Andre Leite**. Author, maintainer.
+- **André Leite**. Author, maintainer.
 
 - **Hugo Vasconcelos**. Author.
 
@@ -28,7 +28,7 @@ version 0.3.0, <https://github.com/StrategicProjects/pdfsigner>.
 
     @Manual{,
       title = {pdfsigner: Digitally Sign and Verify PDF Documents},
-      author = {Andre Leite and Hugo Vasconcelos and Diogo Bezerra and Marcos Wasiliew and Júlia {Nascimento Barreto}},
+      author = {André Leite and Hugo Vasconcelos and Diogo Bezerra and Marcos Wasiliew and Júlia {Nascimento Barreto}},
       year = {2026},
       note = {R package version 0.3.0},
       url = {https://github.com/StrategicProjects/pdfsigner},
