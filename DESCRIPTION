@@ -3,7 +3,7 @@ Title: Digitally Sign and Verify PDF Documents
 Type: Package
 Version: 0.3.0
 Authors@R: c(
-              person("Andre", "Leite",
+              person("André", "Leite",
                 email = "leite@castlab.org",
                 role = c("aut", "cre")),
               person("Hugo", "Vasconcelos",
