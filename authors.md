@@ -12,6 +12,8 @@
 
 - **Marcos Wasiliew**. Author. [](https://orcid.org/0009-0004-4694-3159)
 
+- **Carlos Amorim**. Author. [](https://orcid.org/0000-0001-6315-8305)
+
 - **Júlia Nascimento Barreto**. Author.
   [](https://orcid.org/0009-0004-2851-7770)
 
@@ -24,13 +26,14 @@
 Source:
 [`DESCRIPTION`](https://github.com/StrategicProjects/pdfsigner/blob/main/DESCRIPTION)
 
-Leite A, Vasconcelos H, Bezerra D, Wasiliew M, Nascimento Barreto J
-(2026). *pdfsigner: Digitally Sign and Verify PDF Documents*. R package
-version 0.3.0, <https://github.com/StrategicProjects/pdfsigner>.
+Leite A, Vasconcelos H, Bezerra D, Wasiliew M, Amorim C, Nascimento
+Barreto J (2026). *pdfsigner: Digitally Sign and Verify PDF Documents*.
+R package version 0.3.0,
+<https://github.com/StrategicProjects/pdfsigner>.
 
     @Manual{,
       title = {pdfsigner: Digitally Sign and Verify PDF Documents},
-      author = {André Leite and Hugo Vasconcelos and Diogo Bezerra and Marcos Wasiliew and Júlia {Nascimento Barreto}},
+      author = {André Leite and Hugo Vasconcelos and Diogo Bezerra and Marcos Wasiliew and Carlos Amorim and Júlia {Nascimento Barreto}},
       year = {2026},
       note = {R package version 0.3.0},
       url = {https://github.com/StrategicProjects/pdfsigner},
